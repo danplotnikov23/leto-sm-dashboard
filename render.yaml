@@ -1,0 +1,26 @@
+services:
+  - type: web
+    name: leto-sm-backend
+    runtime: docker
+    repo: https://github.com/YOUR_USERNAME/leto-sm-dashboard
+    dockerfilePath: ./Dockerfile
+    envVars:
+      - key: OZON_CLIENT_ID
+        value: 5528045
+      - key: OZON_API_KEY
+        value: b988b85d-bd95-4553-a251-e1368f42b14d
+      - key: CORS_ORIGINS
+        value: https://leto-sm-platform.ru,https://www.leto-sm-platform.ru
+      - key: OZON_SELLER_BASE_URL
+        value: https://api-seller.ozon.ru
+      - key: OZON_PERFORMANCE_BASE_URL
+        value: https://api-performance.ozon.ru
+      - key: REQUEST_TIMEOUT_SECONDS
+        value: "30"
+      - key: HEALTH_TIMEOUT_SECONDS
+        value: "5"
+    healthCheckPath: /
+    disk:
+      name: uploads
+      mountPath: /app/uploads
+      sizeGB: 1

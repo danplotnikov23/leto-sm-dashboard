@@ -1,0 +1,292 @@
+/* ─── Leto SM Dashboard — Dark Theme ─── */
+
+:root {
+  --bg-primary: #0f1117;
+  --bg-secondary: #161920;
+  --bg-tertiary: #1c1f2a;
+  --bg-card: #1e212b;
+  --bg-hover: #252a36;
+
+  --text-primary: #e8eaed;
+  --text-secondary: #9aa0a6;
+  --text-muted: #5f6368;
+
+  --accent: #f4a261;
+  --accent-hover: #e76f51;
+
+  --success: #2a9d8f;
+  --success-bg: rgba(42, 157, 143, 0.15);
+  --danger: #e63946;
+  --danger-bg: rgba(230, 57, 70, 0.15);
+  --warning: #f4a261;
+
+  --border: #2a2d3a;
+  --border-light: #3a3d4a;
+
+  --sidebar-width: 240px;
+  --header-height: 64px;
+
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+* {
+  margin: 0;
+  padding: 0;
+
+html, body, #root {
+  height: 100%;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  background: var(--bg-primary);
+
+/* ─── Layout ─── */
+.app {
+  display: flex;
+  height: 100vh;
+
+/* ─── Sidebar ─── */
+.sidebar {
+  width: var(--sidebar-width);
+  background: var(--bg-secondary);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+
+.sidebar-header {
+  padding: 20px 16px;
+
+.logo {
+  display: flex;
+  align-items: center;
+
+.logo-img {
+  width: 32px;
+  height: 32px;
+
+.logo-text {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--accent);
+
+.sidebar-nav {
+  flex: 1;
+  padding: 12px 10px;
+  display: flex;
+  flex-direction: column;
+
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  border: none;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  text-align: left;
+
+.nav-item:hover {
+  background: var(--bg-hover);
+
+.nav-item-active {
+  background: var(--accent) !important;
+  color: #fff !important;
+
+.nav-item-active:hover {
+
+.sidebar-footer {
+  padding: 12px 10px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+
+/* ─── Main Content ─── */
+.main-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+
+.content-header {
+  height: var(--header-height);
+  padding: 0 28px;
+  display: flex;
+  align-items: center;
+  border-bottom: 1px solid var(--border);
+
+.content-header h1 {
+  font-size: 22px;
+  font-weight: 600;
+
+.content-body {
+  flex: 1;
+  padding: 24px 28px;
+
+/* ─── Section ─── */
+.section-container {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+
+.section-header h2 {
+  font-size: 18px;
+
+.section-actions {
+  display: flex;
+
+/* ─── Buttons ─── */
+.btn-secondary {
+  padding: 8px 16px;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  font-size: 13px;
+  cursor: pointer;
+
+.btn-secondary:hover {
+  background: var(--bg-hover);
+
+.btn-secondary:disabled {
+  opacity: 0.5;
+
+/* ─── Search Input ─── */
+.search-input {
+  padding: 8px 14px;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  font-size: 13px;
+  width: 260px;
+  outline: none;
+
+.search-input:focus {
+
+.search-input::placeholder {
+
+/* ─── Buttons disabled ─── */
+.btn-secondary:disabled {
+  opacity: 0.5;
+  opacity: 0.5;
+
+/* ─── Tiles ─── */
+.tiles-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+
+.tile {
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+
+.tile-label {
+  font-size: 12px;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+
+.tile-value {
+  font-size: 22px;
+  font-weight: 700;
+
+.tile-accent {
+  border-color: var(--accent);
+
+.tile-accent .tile-value {
+
+/* ─── Table ─── */
+.table-wrap {
+  overflow-x: auto;
+  border-radius: var(--radius-md);
+
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+
+.data-table th {
+  background: var(--bg-tertiary);
+  padding: 12px 14px;
+  text-align: left;
+  font-weight: 600;
+  color: var(--text-secondary);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+
+.data-table td {
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border);
+
+.data-table tbody tr:hover {
+
+.data-table tbody tr:last-child td {
+
+/* ─── Badges ─── */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 11px;
+
+.badge-active {
+  background: var(--success-bg);
+
+.badge-cancelled {
+  background: var(--danger-bg);
+
+/* ─── States ─── */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 60px 20px;
+  color: var(--text-muted);
+
+.empty-state p {
+
+.text-muted {
+  color: var(--text-muted);
+
+/* ─── Alerts ─── */
+.alert {
+  padding: 12px 16px;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+
+.alert-error {
+  background: var(--danger-bg);
+  color: var(--danger);
+
+/* ─── Utility ─── */
+.positive {
+
+.negative {
+
+/* ─── Scrollbar ─── */
+::-webkit-scrollbar {
+  width: 8px;
+
+::-webkit-scrollbar-track {
+
+::-webkit-scrollbar-thumb {
+  background: var(--border-light);
+
+::-webkit-scrollbar-thumb:hover {

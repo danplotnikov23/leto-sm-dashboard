@@ -1,0 +1,14 @@
+fastapi
+httpx
+openpyxl
+pandas
+pdfplumber
+pillow
+playwright
+PyMuPDF
+pypdf
+pytesseract
+python-multipart
+PyYAML
+rapidfuzz
+uvicorn
