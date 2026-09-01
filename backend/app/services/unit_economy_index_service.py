@@ -99,6 +99,17 @@ class _UnitEconomyVersionIndex:
         return self.products_by_sku.get(_normalize_key(sku))
 
     def get_workbook_version(self) -> UnitEconomyWorkbookVersion:
+        if not self.loaded:
+            return UnitEconomyWorkbookVersion(
+                path=str(self.config.workbook_path),
+                modified_at="",
+                size_bytes=0,
+                version_id="",
+                valid_from=self.config.valid_from.isoformat(),
+                sheet_name="",
+            )
+        stat = self.config.workbook_path.stat()
+        modified_at = datetime.fromtimestamp(stat.st_mtime, UTC).isoformat()
         stat = self.config.workbook_path.stat()
         modified_at = datetime.fromtimestamp(stat.st_mtime, UTC).isoformat()
         return UnitEconomyWorkbookVersion(
