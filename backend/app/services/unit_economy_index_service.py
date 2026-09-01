@@ -175,7 +175,9 @@ class _UnitEconomyVersionIndex:
                 price_without_vat=_cell_float(
                     row,
                     columns["Цена (со скидкой) без НДС, руб."],
-                ),
+                )
+                if "Цена (со скидкой) без НДС, руб." in columns
+                else None,
                 cost_without_vat=_cell_float(
                     row,
                     _column(
