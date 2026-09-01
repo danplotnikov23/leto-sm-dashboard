@@ -331,16 +331,6 @@ class UnitEconomyIndexService:
 
     def find_by_offer_id(self, offer_id: str) -> UnitEconomyProduct | None:
         return self.products_by_offer_id.get(_normalize_key(offer_id))
-        if _has_unit_expense(selected_product):
-            return selected_product
-
-        return (
-            self._find_by_offer_id_in_fallback_versions(
-                offer_id,
-                latest,
-            )
-            or selected_product
-        )
 
     def find_by_sku(self, sku: str) -> UnitEconomyProduct | None:
         latest = self._latest_version
