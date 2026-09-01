@@ -41,10 +41,10 @@ def parse_date_from_filename(filename: str) -> date | None:
 HEADER_ROW = 2
 DATA_START_ROW = 4
 REQUIRED_COLUMNS = (
-    "артикул",
-    "Себес (затраты)",
-    "Себес (затраты) + Комиссия Озон",
-    "Чистая прибыль, руб.",
+    ("артикул", "Артикул прайс", "Артикл прайс"),
+    ("Себес (затраты)",),
+    ("Себес (затраты) + Комиссия Озон", "Себес (затраты) + реклама +  Комиссия Озон"),
+    ("Чистая прибыль, руб.",),
 )
 
 
@@ -146,9 +146,17 @@ class _UnitEconomyVersionIndex:
 
         for offset, row in enumerate(rows):
             row_number = DATA_START_ROW + offset
-            offer_id = _row_string(row, columns["артикул"])
+            offer_id = _row_string(
+                row,
+                _column(columns, "артикул", "Артикул прайс", "Артикл прайс"),
+            )
             if offer_id is None:
                 continue
+
+            product = UnitEconomyProduct(
+                row,
+                _column(columns, "артикул", "Артикул прайс", "Артикл прайс"),
+            )
 
             product = UnitEconomyProduct(
                 row_number=row_number,
@@ -188,10 +196,17 @@ class _UnitEconomyVersionIndex:
                     row,
                     columns["Затраты на рекламу и продвижение, руб."],
                 ),
-                expense_cost=_cell_float(row, columns["Себес (затраты)"]),
+                expense_cost=_cell_float(
+                    row,
+                    _column(columns, "Себес (затраты)"),
+                ),
                 expense_with_ozon_commission=_cell_float(
                     row,
-                    columns["Себес (затраты) + Комиссия Озон"],
+                    _column(
+                        columns,
+                        "Себес (затраты) + Комиссия Озон",
+                        "Себес (затраты) + реклама +  Комиссия Озон",
+                    ),
                 ),
                 logistics_compensation=(
                     _cell_float(row, columns["Компенсация логистики"])
@@ -659,7 +674,10 @@ def _worksheet_has_required_columns(worksheet: ReadOnlyWorksheet) -> bool:
     except StopIteration:
         return False
 
-    return all(column in columns for column in REQUIRED_COLUMNS)
+    return all(
+        any(name in columns for name in group)
+        for group in REQUIRED_COLUMNS
+    )
 
 
 def _build_column_map(worksheet: ReadOnlyWorksheet) -> dict[str, int]:
