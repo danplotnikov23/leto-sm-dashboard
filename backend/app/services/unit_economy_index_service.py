@@ -219,8 +219,12 @@ class _UnitEconomyVersionIndex:
                 profit_before_tax=_cell_float(
                     row,
                     columns["Прибыль до налогообложения, руб."],
-                ),
-                tax=_cell_float(row, columns["Налоги, руб."]),
+                )
+                if "Прибыль до налогообложения, руб." in columns
+                else None,
+                tax=_cell_float(row, columns["Налоги, руб."])
+                if "Налоги, руб." in columns
+                else None,
                 net_profit=_cell_float(row, columns["Чистая прибыль, руб."]),
                 profitability=_cell_float(row, columns["Рентабельность, %"]),
             )
