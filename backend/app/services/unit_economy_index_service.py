@@ -184,8 +184,13 @@ class _UnitEconomyVersionIndex:
                         columns,
                         "Закупочная цена без НДС, руб.",
                         "Себестоимость без НДС, руб.",
+                        "Закупочная цена с НДС, руб.",
                     ),
-                ),
+                )
+                if "Закупочная цена без НДС, руб." in columns
+                or "Себестоимость без НДС, руб." in columns
+                or "Закупочная цена с НДС, руб." in columns
+                else None,
                 ozon_commission=_cell_float(
                     row,
                     columns["Вознаграждение OZON (от цены реализации), руб."],
