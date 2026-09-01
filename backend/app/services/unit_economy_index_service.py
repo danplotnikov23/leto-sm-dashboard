@@ -85,9 +85,25 @@ class _UnitEconomyVersionIndex:
         self.products_by_offer_id: dict[str, UnitEconomyProduct] = {}
         self.products_by_sku: dict[str, UnitEconomyProduct] = {}
         self.row_count = 0
+        self.loaded = False
+        try:
+            self._load()
+            self.loaded = True
+        except FileNotFoundError:
+            pass
+    def __init__(self, config: _UnitEconomyVersionConfig) -> None:
+        self.config = config
+        self.sheet_name: str = ""
+        self.products_by_offer_id: dict[str, UnitEconomyProduct] = {}
+        self.products_by_sku: dict[str, UnitEconomyProduct] = {}
+        self.row_count = 0
         self._load()
 
     def find_by_offer_id(self, offer_id: str) -> UnitEconomyProduct | None:
+        latest = self._latest_version
+        if latest is None:
+            return None
+        selected_product = latest.find_by_offer_id(offer_id)
         return self.products_by_offer_id.get(_normalize_key(offer_id))
 
     def find_by_sku(self, sku: str) -> UnitEconomyProduct | None:
@@ -223,8 +239,6 @@ class UnitEconomyIndexService:
             _UnitEconomyVersionIndex(config)
             for config in sorted(configs, key=lambda item: item.valid_from)
         ]
-        if not versions:
-            raise ValueError("At least one unit-economy workbook version is required")
         return versions
 
     def reload(self) -> None:
@@ -308,6 +322,15 @@ class UnitEconomyIndexService:
 
     def get_summary(self) -> UnitEconomyIndexSummary:
         active = self._latest_version
+        if active is None:
+            return UnitEconomyIndexSummary(
+                sheet_name="",
+                row_count=0,
+                indexed_offer_ids=0,
+                indexed_skus=0,
+                active_version="",
+                versions=[],
+            )
         return UnitEconomyIndexSummary(
             sheet_name=active.sheet_name,
             row_count=active.row_count,
@@ -318,33 +341,43 @@ class UnitEconomyIndexService:
         )
 
     def find_by_offer_id(self, offer_id: str) -> UnitEconomyProduct | None:
-        selected_product = self._latest_version.find_by_offer_id(offer_id)
+        latest = self._latest_version
+        if latest is None:
+            return None
+        selected_product = latest.find_by_offer_id(offer_id)
+
         if _has_unit_expense(selected_product):
             return selected_product
 
         return (
             self._find_by_offer_id_in_fallback_versions(
                 offer_id,
-                self._latest_version,
+                latest,
             )
             or selected_product
         )
 
     def find_by_sku(self, sku: str) -> UnitEconomyProduct | None:
-        selected_product = self._latest_version.find_by_sku(sku)
+        latest = self._latest_version
+        if latest is None:
+            return None
+        selected_product = latest.find_by_sku(sku)
         if _has_unit_expense(selected_product):
             return selected_product
 
         return (
             self._find_by_sku_in_fallback_versions(
                 sku,
-                self._latest_version,
+                latest,
             )
             or selected_product
         )
 
     def list_products(self, limit: int | None = None) -> list[UnitEconomyProduct]:
-        products = list(self._latest_version.products_by_offer_id.values())
+        latest = self._latest_version
+        if latest is None:
+            return []
+        products = list(latest.products_by_offer_id.values())
         if limit is None:
             return products
 
@@ -356,6 +389,8 @@ class UnitEconomyIndexService:
         effective_date: str | date,
     ) -> UnitEconomyProduct | None:
         selected_version = self._version_for_date(effective_date)
+        if selected_version is None:
+            return None
         selected_product = selected_version.find_by_offer_id(offer_id)
         if _has_unit_expense(selected_product):
             return selected_product
@@ -371,6 +406,8 @@ class UnitEconomyIndexService:
         effective_date: str | date,
     ) -> UnitEconomyProduct | None:
         selected_version = self._version_for_date(effective_date)
+        if selected_version is None:
+            return None
         selected_product = selected_version.find_by_sku(sku)
         if _has_unit_expense(selected_product):
             return selected_product
@@ -385,6 +422,18 @@ class UnitEconomyIndexService:
         start = _parse_iso_date(date_from)
         end = _parse_iso_date(date_to)
         selected = self._version_for_date(end)
+        if selected is None:
+            return UnitEconomyVersionSelection(
+                version=UnitEconomyWorkbookVersion(
+                    path="",
+                    modified_at="",
+                    size_bytes=0,
+                    version_id="",
+                    valid_from="",
+                    sheet_name="",
+                ),
+                warning="Юнитка не загружена",
+            )
         selected_version = selected.get_workbook_version()
         crossed_versions = [
             version
@@ -428,7 +477,10 @@ class UnitEconomyIndexService:
         for change_date in change_dates:
             segment_end = change_date - timedelta(days=1)
             if segment_start <= segment_end:
-                segment_version = self._version_for_date(segment_start).get_workbook_version()
+                version_for_segment = self._version_for_date(segment_start)
+                if version_for_segment is None:
+                    continue
+                segment_version = version_for_segment.get_workbook_version()
                 segments.append(
                     UnitEconomyPeriodSegment(
                         date_from=segment_start.isoformat(),
@@ -438,36 +490,40 @@ class UnitEconomyIndexService:
                 )
             segment_start = change_date
 
-        segment_version = self._version_for_date(segment_start).get_workbook_version()
-        segments.append(
-            UnitEconomyPeriodSegment(
-                date_from=segment_start.isoformat(),
-                date_to=end.isoformat(),
-                version=segment_version,
+        version_for_segment = self._version_for_date(segment_start)
+        if version_for_segment is not None:
+            segment_version = version_for_segment.get_workbook_version()
+            segments.append(
+                UnitEconomyPeriodSegment(
+                    date_from=segment_start.isoformat(),
+                    date_to=end.isoformat(),
+                    version=segment_version,
+                )
             )
-        )
 
         return segments
 
     def get_workbook_version(
         self,
         effective_date: str | date | None = None,
-    ) -> UnitEconomyWorkbookVersion:
-        if effective_date is None:
-            return self._latest_version.get_workbook_version()
-
-        return self._version_for_date(effective_date).get_workbook_version()
+    ) -> UnitEconomyWorkbookVersion | None:
+        version = self._latest_version if effective_date is None else self._version_for_date(effective_date)
+        if version is None:
+            return None
+        return version.get_workbook_version()
 
     @property
-    def _latest_version(self) -> _UnitEconomyVersionIndex:
-        return self._versions[-1]
+    def _latest_version(self) -> _UnitEconomyVersionIndex | None:
+        return self._versions[-1] if self._versions else None
 
-    def _version_for_date(self, effective_date: str | date) -> _UnitEconomyVersionIndex:
+    def _version_for_date(self, effective_date: str | date) -> _UnitEconomyVersionIndex | None:
         parsed_date = (
             effective_date
             if isinstance(effective_date, date)
             else _parse_iso_date(effective_date)
         )
+        if not self._versions:
+            return None
         selected = self._versions[0]
         for version in self._versions:
             if version.config.valid_from <= parsed_date:
