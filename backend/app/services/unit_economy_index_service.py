@@ -153,10 +153,6 @@ class _UnitEconomyVersionIndex:
             if offer_id is None:
                 continue
 
-            product = UnitEconomyProduct(
-                row,
-                _column(columns, "артикул", "Артикул прайс", "Артикл прайс"),
-            )
 
             product = UnitEconomyProduct(
                 row_number=row_number,
