@@ -91,19 +91,8 @@ class _UnitEconomyVersionIndex:
             self.loaded = True
         except FileNotFoundError:
             pass
-    def __init__(self, config: _UnitEconomyVersionConfig) -> None:
-        self.config = config
-        self.sheet_name: str = ""
-        self.products_by_offer_id: dict[str, UnitEconomyProduct] = {}
-        self.products_by_sku: dict[str, UnitEconomyProduct] = {}
-        self.row_count = 0
-        self._load()
 
     def find_by_offer_id(self, offer_id: str) -> UnitEconomyProduct | None:
-        latest = self._latest_version
-        if latest is None:
-            return None
-        selected_product = latest.find_by_offer_id(offer_id)
         return self.products_by_offer_id.get(_normalize_key(offer_id))
 
     def find_by_sku(self, sku: str) -> UnitEconomyProduct | None:
@@ -341,11 +330,7 @@ class UnitEconomyIndexService:
         )
 
     def find_by_offer_id(self, offer_id: str) -> UnitEconomyProduct | None:
-        latest = self._latest_version
-        if latest is None:
-            return None
-        selected_product = latest.find_by_offer_id(offer_id)
-
+        return self.products_by_offer_id.get(_normalize_key(offer_id))
         if _has_unit_expense(selected_product):
             return selected_product
 
