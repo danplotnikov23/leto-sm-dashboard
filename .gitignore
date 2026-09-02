@@ -21,6 +21,9 @@ ENV/
 # Uploads
 data/
 uploads/
+!backend/app/data/ozon_fbs_commissions_2026_06_01.json.gz
+data/
+uploads/
 
 # Node
 node_modules/
