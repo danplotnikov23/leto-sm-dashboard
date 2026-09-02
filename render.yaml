@@ -10,7 +10,7 @@ services:
       - key: OZON_API_KEY
         value: b988b85d-bd95-4553-a251-e1368f42b14d
       - key: CORS_ORIGINS
-        value: https://leto-sm-platform.ru,https://www.leto-sm-platform.ru
+        value: '["https://leto-sm-platform.ru","http://leto-sm-platform.ru"]'
       - key: OZON_SELLER_BASE_URL
         value: https://api-seller.ozon.ru
       - key: OZON_PERFORMANCE_BASE_URL
@@ -19,6 +19,12 @@ services:
         value: "30"
       - key: HEALTH_TIMEOUT_SECONDS
         value: "5"
+      - key: OWN_OZON_CLIENT_ID
+        value: 5528045
+      - key: OWN_OZON_API_KEY
+        value: b988b85d-bd95-4553-a251-e1368f42b14d
+      - key: STOCK_THRESHOLD
+        value: "10"
     healthCheckPath: /
     disk:
       name: uploads
