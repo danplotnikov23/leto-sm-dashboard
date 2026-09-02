@@ -93,6 +93,32 @@ class OzonSellerClient:
         """updates: [{"offer_id": ..., "stock": int, "warehouse_id": int}, ...]."""
         return await self.post("/v2/products/stocks", {"stocks": updates})
 
+    async def list_orders(
+        self,
+        since: datetime,
+        to: datetime,
+        status: str = "",
+        limit: int = 50,
+        offset: int = 0,
+    ) -> dict[str, object]:
+        """FBS posting list (orders)."""
+        payload: dict[str, object] = {
+            "dir": "DESC",
+            "filter": {
+                "since": since.isoformat(),
+                "to": to.isoformat(),
+            },
+            "limit": min(max(limit, 1), 1000),
+            "offset": offset,
+            "with": {
+                "analytics_data": True,
+                "financial_data": True,
+            },
+        }
+        if status:
+            payload["filter"]["status"] = status
+        return await self.post("/v3/posting/fbs/list", payload)
+
 
 class OzonClientFactory:
     def __init__(self, settings: Settings) -> None:

@@ -46,7 +46,12 @@ from app.services.analysis import ProductAnalysisService
 from app.services.competitor_import import CompetitorImportService
 from app.services.economics import EconomicsService
 from app.services.excel_export import UnitEconomicsExcelExporter
-from app.services.ozon_client import OzonClientFactory, OzonPerformanceClientFactory
+from app.services.ozon_client import (
+    OzonClientFactory,
+    OzonCredentials,
+    OzonPerformanceClientFactory,
+    OzonSellerClient,
+)
 from app.services.stock_monitor import (
     StockMonitorNotConfigured,
     apply_stock_to_ozon,
@@ -702,6 +707,87 @@ async def ozon_products(limit: int = 10, visibility: str = "ALL") -> OzonProduct
         last_id=str(result.get("last_id")) if result.get("last_id") else None,
         items=items,
     )
+
+
+@router.get("/ozon/orders")
+async def ozon_orders(
+    days: int = 7,
+) -> dict[str, object]:
+    # ВАЖНО: НЕ ozon_factory — тот собран на OZON_CLIENT_ID/API_KEY бенчмарк-аккаунта
+    # "Аллея мебели" (см. app/core/config.py). Заказы Главной должны идти с реального
+    # аккаунта Лето СМ — own_ozon_client_id/own_ozon_api_key (те же, что в
+    # projects/stock-monitor/.env и уже используются в app/services/stock_monitor.py).
+    settings = get_settings()
+    if not settings.own_ozon_client_id or not settings.own_ozon_api_key:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "Не заданы OWN_OZON_CLIENT_ID / OWN_OZON_API_KEY — это ключи собственного "
+                "кабинета Ozon (Лето СМ), отдельные от бенчмарк-аккаунта Аллеи."
+            ),
+        )
+    own_client = OzonSellerClient(
+        OzonCredentials(client_id=settings.own_ozon_client_id, api_key=settings.own_ozon_api_key),
+        base_url=settings.ozon_api_base_url,
+    )
+
+    from datetime import datetime, timedelta, timezone
+    now = datetime.now(timezone.utc)
+    since = now - timedelta(days=days)
+
+    try:
+        response = await own_client.list_orders(
+            since=since,
+            to=now,
+            limit=1000,
+        )
+    except httpx.HTTPStatusError as error:
+        raise HTTPException(
+            status_code=error.response.status_code,
+            detail="Ozon API отклонил запрос. Проверьте Client ID, API key и права токена.",
+        ) from error
+    except httpx.HTTPError as error:
+        raise HTTPException(status_code=502, detail=f"Ошибка связи с Ozon API: {error}") from error
+
+    # Ozon /v3/posting/fbs/list вкладывает список в "result", не в корень ответа —
+    # response.get("postings") тут всегда был бы None, поэтому total_orders всегда
+    # выходил 0 независимо от реальных данных.
+    result = response.get("result", {})
+    postings = result.get("postings", []) if isinstance(result, dict) else []
+
+    total_revenue = 0.0
+    total_orders = len(postings)
+    daily: dict[str, dict[str, float]] = {}
+
+    for posting in postings:
+        if not isinstance(posting, dict):
+            continue
+        date_str = posting.get("in_process_at", "")[:10] or posting.get("created_at", "")[:10]
+        if date_str not in daily:
+            daily[date_str] = {"revenue": 0.0, "orders": 0}
+        daily[date_str]["orders"] += 1
+
+        products = posting.get("products", [])
+        if isinstance(products, list):
+            for product in products:
+                if isinstance(product, dict):
+                    price = product.get("price", "0")
+                    try:
+                        total_revenue += float(price)
+                        daily[date_str]["revenue"] += float(price)
+                    except (ValueError, TypeError):
+                        pass
+
+    return {
+        "ok": True,
+        "period_days": days,
+        "total_orders": total_orders,
+        "total_revenue": round(total_revenue, 2),
+        "daily": [
+            {"date": d, "orders": v["orders"], "revenue": round(v["revenue"], 2)}
+            for d, v in sorted(daily.items())
+        ],
+    }
 
 
 @router.get("/ozon/performance/status", response_model=OzonPerformanceStatusResponse)
