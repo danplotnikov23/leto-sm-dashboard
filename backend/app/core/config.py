@@ -38,6 +38,11 @@ class Settings(BaseSettings):
     stock_threshold: int = 10
     stock_warehouse_id: str = "1020005026094810"
 
+    # Пароль на вход в платформу (данные закрытые — реальные продажи/остатки).
+    # Если не заданы обе переменные — доступ открыт без пароля (для локальной разработки).
+    dashboard_user: str | None = None
+    dashboard_password: str | None = None
+
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
 
 

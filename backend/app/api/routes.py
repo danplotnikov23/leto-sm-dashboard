@@ -1,11 +1,13 @@
 import json
+from io import BytesIO
 from typing import Annotated
 
 import httpx
-from fastapi import APIRouter, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from fastapi.responses import Response
 from pydantic import ValidationError
 
+from app.api.auth import require_dashboard_auth
 from app.api.schemas import (
     AnalyzeRequest,
     CompetitorImportResponse,
@@ -40,6 +42,13 @@ from app.domain.models import (
     SupplierProduct,
 )
 from app.domain.stock import StockApplyResult, StockSnapshot
+from app.domain.purchase_prices import PurchasePriceApplyResult, PurchasePriceSnapshot
+from app.domain.unitka import (
+    UnitkaAssumptions,
+    UnitkaImportResult,
+    UnitkaItem,
+    UnitkaRow,
+)
 from app.ingestion.excel_importer import ExcelImportService
 from app.repositories.products import repository
 from app.services.analysis import ProductAnalysisService
@@ -53,6 +62,35 @@ from app.services.stock_monitor import (
     refresh_snapshot,
 )
 from app.services.stock_storage import latest_snapshot as latest_stock_snapshot
+from app.services.purchase_price_monitor import (
+    PurchasePriceMonitorNotConfigured,
+    apply_purchase_prices,
+    refresh_purchase_prices,
+)
+from app.services.unitka_engine import compute_row
+from app.services.unitka_importer import read_assumptions as import_read_assumptions
+from app.services.unitka_importer import read_rows as import_read_rows
+from app.services.unitka_storage import (
+    create_row as unitka_create_row,
+)
+from app.services.unitka_storage import (
+    delete_row as unitka_delete_row,
+)
+from app.services.unitka_storage import (
+    get_assumptions as unitka_get_assumptions,
+)
+from app.services.unitka_storage import (
+    get_row as unitka_get_row,
+)
+from app.services.unitka_storage import (
+    list_rows as unitka_list_rows,
+)
+from app.services.unitka_storage import (
+    save_assumptions as unitka_save_assumptions,
+)
+from app.services.unitka_storage import (
+    update_row as unitka_update_row,
+)
 from app.services.ozon_seller_analytics import (
     OzonBestsellersImportRequest,
     OzonBestsellersRequest,
@@ -61,7 +99,7 @@ from app.services.ozon_seller_analytics import (
     OzonSellerAnalyticsFactory,
 )
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(require_dashboard_auth)])
 excel_importer = ExcelImportService()
 analysis_service = ProductAnalysisService()
 economics_service = EconomicsService()
@@ -737,6 +775,7 @@ async def ozon_orders(
 
     total_revenue = 0.0
     total_orders = len(postings)
+    total_qty = 0
     daily: dict[str, dict[str, float]] = {}
 
     for posting in postings:
@@ -744,27 +783,40 @@ async def ozon_orders(
             continue
         date_str = posting.get("in_process_at", "")[:10] or posting.get("created_at", "")[:10]
         if date_str not in daily:
-            daily[date_str] = {"revenue": 0.0, "orders": 0}
+            daily[date_str] = {"revenue": 0.0, "orders": 0, "qty": 0}
         daily[date_str]["orders"] += 1
 
         products = posting.get("products", [])
         if isinstance(products, list):
             for product in products:
-                if isinstance(product, dict):
-                    price = product.get("price", "0")
-                    try:
-                        total_revenue += float(price)
-                        daily[date_str]["revenue"] += float(price)
-                    except (ValueError, TypeError):
-                        pass
+                if not isinstance(product, dict):
+                    continue
+                try:
+                    price = float(product.get("price", "0"))
+                    quantity = int(product.get("quantity", 1) or 1)
+                except (ValueError, TypeError):
+                    continue
+                # Цена в ответе Ozon — за ЕДИНИЦУ товара, не за всю строку заказа —
+                # без умножения на quantity выручка занижалась при quantity > 1.
+                line_revenue = price * quantity
+                total_revenue += line_revenue
+                total_qty += quantity
+                daily[date_str]["revenue"] += line_revenue
+                daily[date_str]["qty"] += quantity
 
     return {
         "ok": True,
         "period_days": days,
         "total_orders": total_orders,
         "total_revenue": round(total_revenue, 2),
+        "total_qty": total_qty,
         "daily": [
-            {"date": d, "orders": v["orders"], "revenue": round(v["revenue"], 2)}
+            {
+                "date": d,
+                "orders": v["orders"],
+                "revenue": round(v["revenue"], 2),
+                "qty": int(v["qty"]),
+            }
             for d, v in sorted(daily.items())
         ],
     }
@@ -975,3 +1027,106 @@ async def stock_apply() -> StockApplyResult:
         return await apply_stock_to_ozon(get_settings())
     except StockMonitorNotConfigured as error:
         raise HTTPException(status_code=409, detail=str(error)) from error
+
+
+# --- Живая Юнитка (см. app/domain/unitka.py, app/services/unitka_engine.py) ---
+
+
+def _unitka_item(row: UnitkaRow) -> UnitkaItem:
+    return UnitkaItem(row=row, computed=compute_row(row, unitka_get_assumptions()))
+
+
+@router.get("/unitka/rows", response_model=list[UnitkaItem])
+def unitka_list() -> list[UnitkaItem]:
+    return [_unitka_item(row) for row in unitka_list_rows()]
+
+
+@router.post("/unitka/rows", response_model=UnitkaItem)
+def unitka_create(row: UnitkaRow) -> UnitkaItem:
+    saved = unitka_create_row(row)
+    return _unitka_item(saved)
+
+
+@router.patch("/unitka/rows/{row_id}", response_model=UnitkaItem)
+def unitka_update(row_id: str, row: UnitkaRow) -> UnitkaItem:
+    if unitka_get_row(row_id) is None:
+        raise HTTPException(status_code=404, detail="Строка юнитки не найдена.")
+    updated = unitka_update_row(row_id, row.model_copy(update={"id": row_id}))
+    return _unitka_item(updated)
+
+
+@router.delete("/unitka/rows/{row_id}", status_code=204)
+def unitka_delete(row_id: str) -> None:
+    unitka_delete_row(row_id)
+
+
+@router.get("/unitka/assumptions", response_model=UnitkaAssumptions)
+def unitka_assumptions_get() -> UnitkaAssumptions:
+    return unitka_get_assumptions()
+
+
+@router.patch("/unitka/assumptions", response_model=UnitkaAssumptions)
+def unitka_assumptions_update(assumptions: UnitkaAssumptions) -> UnitkaAssumptions:
+    return unitka_save_assumptions(assumptions)
+
+
+@router.post("/purchase-prices/refresh", response_model=PurchasePriceSnapshot)
+async def purchase_prices_refresh() -> PurchasePriceSnapshot:
+    try:
+        return await refresh_purchase_prices(get_settings())
+    except PurchasePriceMonitorNotConfigured as error:
+        raise HTTPException(status_code=409, detail=str(error)) from error
+    except httpx.HTTPError as error:
+        raise HTTPException(status_code=502, detail=f"Не удалось получить цены: {error}") from error
+
+
+@router.post("/purchase-prices/apply", response_model=PurchasePriceApplyResult)
+async def purchase_prices_apply() -> PurchasePriceApplyResult:
+    try:
+        return await apply_purchase_prices(get_settings())
+    except PurchasePriceMonitorNotConfigured as error:
+        raise HTTPException(status_code=409, detail=str(error)) from error
+    except httpx.HTTPError as error:
+        raise HTTPException(status_code=502, detail=f"Не удалось получить цены: {error}") from error
+
+
+@router.post("/unitka/import", response_model=UnitkaImportResult)
+async def unitka_import(file: Annotated[UploadFile, File(...)]) -> UnitkaImportResult:
+    """Импорт из загруженного .xlsx — бэкенд на Render не видит локальный диск, поэтому
+    файл приходит через загрузку в браузере, как и прайсы поставщиков. Идемпотентно
+    по supplier_article: существующие строки обновляются, новые — создаются."""
+    if not file.filename or not file.filename.lower().endswith((".xlsx", ".xlsm")):
+        raise HTTPException(status_code=400, detail="Нужен файл .xlsx.")
+    content = await file.read()
+    if not content:
+        raise HTTPException(status_code=400, detail="Файл пустой.")
+
+    try:
+        rows, warnings = import_read_rows(BytesIO(content))
+        assumptions = import_read_assumptions(BytesIO(content))
+    except KeyError as error:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Не найден лист '15.06.26' или ожидаемый столбец: {error}",
+        ) from error
+
+    unitka_save_assumptions(assumptions)
+
+    existing_by_article = {row.supplier_article: row for row in unitka_list_rows()}
+    imported = 0
+    updated = 0
+    for new_row in rows:
+        existing = existing_by_article.get(new_row.supplier_article)
+        if existing is None:
+            unitka_create_row(new_row)
+            imported += 1
+        else:
+            unitka_update_row(existing.id, new_row.model_copy(update={"id": existing.id}))
+            updated += 1
+
+    return UnitkaImportResult(
+        imported=imported,
+        updated=updated,
+        skipped=len(warnings),
+        warnings=warnings[:50],
+    )

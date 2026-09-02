@@ -22,6 +22,16 @@ class TdcsmStockInfo(BaseModel):
     only_contain_order: bool
     name: str
     discontinued: bool
+    # Цена в ответе tdcsm.ru — за БАЗОВУЮ единицу (тот же принцип, что store/contain
+    # для остатков, см. docstring stock_for_idcodes). purchase_price — это уже цена за
+    # продаваемую на Ozon единицу (упаковку), готовая идти в столбец X юнитки.
+    # Проверено 2026-09-02: сверка с уже занесёнными X по 3 реальным SKU (Laguna 900,
+    # топор DDE, шурупы уп.100) — во всех трёх tdcsm-цена (price * contain) стабильно
+    # на 26-39% выше устаревшего значения в юнитке, а НЕ голое price без умножения
+    # (которое давало бы разрыв на порядок для товара с contain=100) — подтверждает,
+    # что нужно именно price * contain.
+    price_per_base_unit: float
+    purchase_price: float
 
 
 class TdcsmClient:
@@ -62,12 +72,15 @@ class TdcsmClient:
                     sellable_stock = (
                         store // contain if (only_contain_order and contain > 1) else store
                     )
+                    price_per_base_unit = float(item.get("price") or 0)
                     result[item["idcode"]] = TdcsmStockInfo(
                         idcode=item["idcode"],
                         store=store,
                         sellable_stock=sellable_stock,
                         contain=contain,
                         only_contain_order=only_contain_order,
+                        price_per_base_unit=price_per_base_unit,
+                        purchase_price=round(price_per_base_unit * contain, 2),
                         # tdcsm.ru отдаёт название с HTML-сущностями (например "&#215;" вместо
                         # "×") — их декодирует Telegram (parse_mode=HTML в checker.py), но не
                         # декодирует обычный текстовый рендер в браузере, поэтому распаковываем

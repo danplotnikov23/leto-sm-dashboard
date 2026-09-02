@@ -86,7 +86,8 @@ class UnitkaRow(BaseModel):
     coinvest_percent: float = 0.0  # T "Процент соинвест"
     markup_multiplier: float = 0.0  # V "Торговая наценка" — множитель, не рубли (см. формулу S)
     purchase_price_vat_included: float  # X "Закупочная цена с НДС, руб."
-    fbs_costs: float = 0.0  # Z "FBS затраты" (часто = скопированное значение AW на момент ввода)
+    # Z "FBS затраты" ЗДЕСЬ НЕ INPUT: с 2026-09-02 в файле это формула =AW3 (было ручным
+    # числом до этой даты) — см. fbs_costs в UnitkaRowComputed, считается как AW.
     ozon_commission_percent: float = 0.0  # AD "Вознаграждение OZON, %"
     integration_fee: float = 0.0  # AH "Сбор за интеграцию, руб."
 
@@ -112,6 +113,7 @@ class UnitkaRowComputed(BaseModel):
     ozon_points_discount: float  # U
     customer_price: float  # W
     sorting_delivery_cost: float  # Y
+    fbs_costs: float  # Z (=AW, с 2026-09-02; 0.0, если не удалось распарсить габариты O)
     fulfillment_cost: float  # AA (=AX)
     designer_salary_cost: float  # AB
     fast_payout_cost: float  # AC
@@ -127,7 +129,7 @@ class UnitkaRowComputed(BaseModel):
     cost_basis_with_advertising: float  # AO
     cost_basis_with_advertising_and_commission: float  # AP
     volume_liters_computed: float | None  # AV (None, если O не парсится)
-    ozon_volume_logistics_reference: float | None  # AW — справочно, в P&L не участвует
+    ozon_volume_logistics_reference: float | None  # AW — с 2026-09-02 участвует в P&L (см. fbs_costs)
     fulfillment_office_cost: float  # AX
 
 
@@ -138,3 +140,12 @@ class UnitkaItem(BaseModel):
 
     row: UnitkaRow
     computed: UnitkaRowComputed
+
+
+class UnitkaImportResult(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    imported: int
+    updated: int
+    skipped: int
+    warnings: list[str]
