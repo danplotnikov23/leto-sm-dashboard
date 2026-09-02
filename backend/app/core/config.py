@@ -20,8 +20,8 @@ class Settings(BaseSettings):
     )
     default_vat_rate: float = 0.22
     profit_tax_rate: float = 0.20
-    ozon_account_label: str = "Аллея мебели"
-    ozon_account_usage_mode: str = "benchmark_account"
+    ozon_account_label: str = "Лето СМ"
+    ozon_account_usage_mode: str = "target_store"
     ozon_client_id: str | None = None
     ozon_api_key: str | None = None
     ozon_api_base_url: str = "https://api-seller.ozon.ru"
@@ -31,15 +31,6 @@ class Settings(BaseSettings):
     ozon_seller_web_base_url: str = "https://seller.ozon.ru"
     ozon_seller_web_cookie: str | None = None
     ozon_request_timeout: float = 20.0
-
-    # Собственный кабинет Ozon (Лето СМ / ассортимент Центр СМ) — НАМЕРЕННО отдельные
-    # переменные от ozon_client_id/ozon_api_key выше. Те принадлежат бенчмарк-аккаунту
-    # "Аллея мебели" (см. ozon_account_usage_mode) и используются только для сравнения
-    # конкурентов в Каталоге поставщиков. Путать эти два аккаунта нельзя — это разные
-    # магазины Ozon с разными данными о реальных продажах.
-    own_ozon_account_label: str = "Лето СМ (Центр СМ)"
-    own_ozon_client_id: str | None = None
-    own_ozon_api_key: str | None = None
 
     # Мониторинг остатков (перенесено из projects/stock-monitor) — сверка остатков на Ozon
     # с остатками у поставщика tdcsm.ru.

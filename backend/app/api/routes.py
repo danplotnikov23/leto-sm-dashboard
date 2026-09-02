@@ -46,12 +46,7 @@ from app.services.analysis import ProductAnalysisService
 from app.services.competitor_import import CompetitorImportService
 from app.services.economics import EconomicsService
 from app.services.excel_export import UnitEconomicsExcelExporter
-from app.services.ozon_client import (
-    OzonClientFactory,
-    OzonCredentials,
-    OzonPerformanceClientFactory,
-    OzonSellerClient,
-)
+from app.services.ozon_client import OzonClientFactory, OzonPerformanceClientFactory
 from app.services.stock_monitor import (
     StockMonitorNotConfigured,
     apply_stock_to_ozon,
@@ -713,30 +708,15 @@ async def ozon_products(limit: int = 10, visibility: str = "ALL") -> OzonProduct
 async def ozon_orders(
     days: int = 7,
 ) -> dict[str, object]:
-    # ВАЖНО: НЕ ozon_factory — тот собран на OZON_CLIENT_ID/API_KEY бенчмарк-аккаунта
-    # "Аллея мебели" (см. app/core/config.py). Заказы Главной должны идти с реального
-    # аккаунта Лето СМ — own_ozon_client_id/own_ozon_api_key (те же, что в
-    # projects/stock-monitor/.env и уже используются в app/services/stock_monitor.py).
-    settings = get_settings()
-    if not settings.own_ozon_client_id or not settings.own_ozon_api_key:
-        raise HTTPException(
-            status_code=400,
-            detail=(
-                "Не заданы OWN_OZON_CLIENT_ID / OWN_OZON_API_KEY — это ключи собственного "
-                "кабинета Ozon (Лето СМ), отдельные от бенчмарк-аккаунта Аллеи."
-            ),
-        )
-    own_client = OzonSellerClient(
-        OzonCredentials(client_id=settings.own_ozon_client_id, api_key=settings.own_ozon_api_key),
-        base_url=settings.ozon_api_base_url,
-    )
+    if not ozon_factory.status().configured:
+        raise HTTPException(status_code=400, detail=ozon_factory.status().message)
 
     from datetime import datetime, timedelta, timezone
     now = datetime.now(timezone.utc)
     since = now - timedelta(days=days)
 
     try:
-        response = await own_client.list_orders(
+        response = await ozon_factory.create().list_orders(
             since=since,
             to=now,
             limit=1000,

@@ -22,13 +22,10 @@ class StockMonitorNotConfigured(RuntimeError):
 
 
 def _require_credentials(settings: Settings) -> OzonCredentials:
-    if not settings.own_ozon_client_id or not settings.own_ozon_api_key:
-        msg = (
-            "Не заданы OWN_OZON_CLIENT_ID / OWN_OZON_API_KEY — это ключи собственного "
-            "кабинета Ozon (Лето СМ), отдельные от OZON_CLIENT_ID бенчмарк-аккаунта."
-        )
+    if not settings.ozon_client_id or not settings.ozon_api_key:
+        msg = "Не заданы OZON_CLIENT_ID / OZON_API_KEY в backend/.env."
         raise StockMonitorNotConfigured(msg)
-    return OzonCredentials(client_id=settings.own_ozon_client_id, api_key=settings.own_ozon_api_key)
+    return OzonCredentials(client_id=settings.ozon_client_id, api_key=settings.ozon_api_key)
 
 
 def classify(
@@ -81,7 +78,7 @@ async def _stock_for_offer_ids(client: OzonSellerClient, offer_ids: list[str]) -
 
 
 async def refresh_snapshot(settings: Settings) -> StockSnapshot:
-    """Тянет свежие данные из Ozon + tdcsm.ru, сохраняет снимок, возвращает его.
+    """Тянет свежие данные из Ozon (аккаунт Лето СМ) + tdcsm.ru, сохраняет снимок.
 
     Не отправляет в Telegram — это делает независимый ежедневный
     projects/stock-monitor/checker.py (cron на Рег.ру), который эта функция не трогает.

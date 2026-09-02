@@ -7,8 +7,8 @@ def test_ozon_status_masks_missing_credentials() -> None:
 
     assert status.configured is False
     assert status.client_id_masked is None
-    assert status.account_label == "Аллея мебели"
-    assert status.usage_mode == "benchmark_account"
+    assert status.account_label == "Лето СМ"
+    assert status.usage_mode == "target_store"
     assert "OZON_CLIENT_ID" in status.message
 
 
@@ -17,7 +17,7 @@ def test_ozon_status_masks_configured_client_id() -> None:
 
     assert status.configured is True
     assert status.client_id_masked == "12***78"
-    assert "Аллея мебели" in status.data_scope_warning
+    assert "целевому кабинету" in status.data_scope_warning
 
 
 def test_ozon_factory_refuses_missing_credentials() -> None:
