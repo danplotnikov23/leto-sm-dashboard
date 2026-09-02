@@ -506,10 +506,11 @@ function HomeDashboardPage() {
 }
 
 type Theme = "dark" | "light";
+const themeStorageKey = "leto_theme_v2";
 
 function readStoredTheme(): Theme {
   try {
-    const stored = localStorage.getItem("leto_theme");
+    const stored = localStorage.getItem(themeStorageKey);
     if (stored === "light" || stored === "dark") return stored;
   } catch {
     // localStorage недоступен (приватный режим) — используем тёмную тему по умолчанию
@@ -819,7 +820,6 @@ function UnitkaPage() {
     <div>
       <header className="pageHeader">
         <div>
-          <p className="eyebrow">Все содержательные A–AX, живой пересчёт</p>
           <h2>Юнитка</h2>
         </div>
         <div className="actions">
@@ -1049,7 +1049,7 @@ function App() {
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
     try {
-      localStorage.setItem("leto_theme", theme);
+      localStorage.setItem(themeStorageKey, theme);
     } catch {
       // см. readStoredTheme
     }
