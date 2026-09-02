@@ -143,7 +143,6 @@ const sectionNavItems: { key: Section; label: string; icon: typeof LayoutDashboa
 function ComingSoonPanel({ title, description }: { title: string; description: string }) {
   return (
     <div className="comingSoon">
-      <p className="eyebrow">В разработке</p>
       <h2>{title}</h2>
       <p>{description}</p>
     </div>
@@ -216,7 +215,6 @@ function StockMonitorPage() {
     <div>
       <header className="pageHeader">
         <div>
-          <p className="eyebrow">Ozon ↔ поставщик tdcsm.ru</p>
           <h2>Остатки</h2>
         </div>
         <div className="actions">
@@ -313,15 +311,6 @@ function StockMonitorPage() {
   );
 }
 
-function OzonIcon({ size = 24 }: { size?: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <rect width="32" height="32" rx="6" fill="#0077ff" />
-      <text x="16" y="22" textAnchor="middle" fill="#ffffff" fontSize="16" fontWeight="bold" fontFamily="system-ui, sans-serif">O</text>
-    </svg>
-  );
-}
-
 function zeroFilledDaily(
   daily: { date: string; orders: number; revenue: number; qty: number }[],
   days: number,
@@ -351,6 +340,23 @@ function formatDateLong(dateStr: string): string {
     month: "long",
     year: "numeric",
   });
+}
+
+function formatRevenueScale(value: number): string {
+  if (value === 0) return "0";
+  if (value < 1_000) return `${value} ₽`;
+  return `${Math.round(value / 1_000)} тыс.`;
+}
+
+function revenueScale(maxRevenue: number): { max: number; ticks: number[] } {
+  const minimum = Math.max(maxRevenue, 5_000);
+  const desiredStep = minimum / 6;
+  const step = [1_000, 2_000, 5_000, 10_000, 20_000, 50_000, 100_000].find(
+    (candidate) => candidate >= desiredStep,
+  ) ?? 100_000;
+  const max = Math.ceil(minimum / step) * step;
+  const ticks = Array.from({ length: max / step + 1 }, (_, index) => index * step);
+  return { max, ticks };
 }
 
 function HomeDashboardPage() {
@@ -388,14 +394,15 @@ function HomeDashboardPage() {
 
   const chartDays = data ? zeroFilledDaily(data.daily, days) : [];
   const maxRevenue = Math.max(1, ...chartDays.map((d) => d.revenue));
+  const chartScale = revenueScale(maxRevenue);
   const labelEvery = days > 14 ? 4 : days > 7 ? 2 : 1;
 
   return (
     <div>
-      <header className="pageHeader">
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <OzonIcon size={28} />
-          <h2>Главная</h2>
+      <header className="pageHeader homePageHeader">
+        <div className="ozonSalesHeading">
+          <img className="ozonSalesLogo" src="/ozon-icon.png" alt="Ozon" />
+          <h1><span>OZON</span> Продажи</h1>
         </div>
       </header>
 
@@ -448,13 +455,26 @@ function HomeDashboardPage() {
               <p className="eyebrow">Продажи по дням</p>
               <span className="revenueChartScale">Пик: {rub(maxRevenue)}</span>
             </div>
-            <div className="revenueChart">
+            <div className="revenueChartFrame">
+              <div className="revenueChartAxis" aria-hidden="true">
+                {chartScale.ticks.map((tick) => (
+                  <span key={tick} style={{ bottom: `${(tick / chartScale.max) * 100}%` }}>
+                    {formatRevenueScale(tick)}
+                  </span>
+                ))}
+              </div>
+              <div className="revenueChart">
+              <div className="revenueChartGrid" aria-hidden="true">
+                {chartScale.ticks.slice(1).map((tick) => (
+                  <span key={tick} style={{ bottom: `${(tick / chartScale.max) * 100}%` }} />
+                ))}
+              </div>
               {hoverIndex !== null && chartDays[hoverIndex] && (
                 <div
                   className="revenueChartTooltip"
                   style={{
                     left: `${((hoverIndex + 0.5) / chartDays.length) * 100}%`,
-                    top: `${100 - Math.max(2, (chartDays[hoverIndex].revenue / maxRevenue) * 100)}%`,
+                    top: `${100 - Math.max(2, (chartDays[hoverIndex].revenue / chartScale.max) * 100)}%`,
                   }}
                 >
                   <strong>{formatDateLong(chartDays[hoverIndex].date)}</strong>
@@ -476,7 +496,7 @@ function HomeDashboardPage() {
                 </div>
               )}
               {chartDays.map((d, i) => {
-                const heightPct = Math.max(2, (d.revenue / maxRevenue) * 100);
+                const heightPct = Math.max(2, (d.revenue / chartScale.max) * 100);
                 const isToday = d.date === todayStr;
                 return (
                   <div
@@ -497,6 +517,7 @@ function HomeDashboardPage() {
                   </div>
                 );
               })}
+              </div>
             </div>
           </section>
         </>
@@ -673,7 +694,6 @@ function UnitkaAssumptionsPanel({
       }}
     >
       <div>
-        <p className="eyebrow">Общие для всей таблицы</p>
         <h3>Допущения расчёта</h3>
         <p>Изменение ставки пересчитает все формульные столбцы, но не изменит Excel-файл.</p>
       </div>
@@ -967,7 +987,6 @@ function PurchasePricesPage() {
     <div>
       <header className="pageHeader">
         <div>
-          <p className="eyebrow">Ozon offer_id ↔ tdcsm.ru ↔ живая Юнитка</p>
           <h2>Закупочные цены</h2>
         </div>
         <button className="uploadButton" type="button" onClick={() => void handleRefresh()} disabled={refreshing}>
@@ -981,7 +1000,6 @@ function PurchasePricesPage() {
 
       {!snapshot ? (
         <div className="comingSoon">
-          <p className="eyebrow">Свежие данные по запросу</p>
           <h2>Проверьте закупочные цены</h2>
           <p>Сервис возьмёт опубликованные offer_id из Ozon и сопоставит их с ценой tdcsm.ru и Юниткой.</p>
         </div>
@@ -1587,7 +1605,6 @@ function SupplierCatalogPage() {
     <main className="shell">
       <header className="pageHeader">
         <div>
-          <p className="eyebrow">Оценка новых товаров</p>
           <h2>Каталог поставщиков</h2>
         </div>
         <div className="actions">

@@ -2701,3 +2701,83 @@ tbody tr:hover td { background: rgba(246, 115, 210, 0.055); }
   .actions { flex-wrap: wrap; }
   .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
+
+/* Главная: официальный Ozon + читаемая денежная шкала. */
+.eyebrow {
+  letter-spacing: 0.02em;
+  text-transform: none;
+}
+
+.homePageHeader {
+  align-items: center;
+}
+
+.ozonSalesHeading {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.ozonSalesLogo {
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  box-shadow: 0 8px 20px rgba(10, 94, 255, 0.26);
+}
+
+.ozonSalesHeading h1 {
+  font-size: clamp(30px, 3.2vw, 42px);
+  line-height: 1;
+}
+
+.ozonSalesHeading h1 span {
+  color: #1769ff;
+}
+
+.revenueChartFrame {
+  display: grid;
+  grid-template-columns: 66px minmax(0, 1fr);
+  gap: 10px;
+}
+
+.revenueChartAxis {
+  position: relative;
+  height: 230px;
+  margin: 20px 0 28px;
+}
+
+.revenueChartAxis span {
+  position: absolute;
+  right: 0;
+  color: var(--color-ash);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  transform: translateY(50%);
+}
+
+.revenueChart {
+  isolation: isolate;
+}
+
+.revenueChartGrid {
+  position: absolute;
+  z-index: 0;
+  inset: 20px 16px 28px;
+  pointer-events: none;
+}
+
+.revenueChartCol { position: relative; z-index: 1; }
+
+.revenueChartGrid span {
+  position: absolute;
+  right: 0;
+  left: 0;
+  border-top: 1px dashed rgba(255, 255, 255, 0.11);
+}
+
+@media (max-width: 640px) {
+  .ozonSalesLogo { width: 40px; height: 40px; border-radius: 12px; }
+  .revenueChartFrame { grid-template-columns: 50px minmax(300px, 1fr); overflow-x: auto; }
+  .revenueChartAxis span { font-size: 10px; }
+}
