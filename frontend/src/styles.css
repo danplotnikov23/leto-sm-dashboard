@@ -2781,3 +2781,207 @@ tbody tr:hover td { background: rgba(246, 115, 210, 0.055); }
   .revenueChartFrame { grid-template-columns: 50px minmax(300px, 1fr); overflow-x: auto; }
   .revenueChartAxis span { font-size: 10px; }
 }
+
+/* Юнитка - рабочий лист: светлая поверхность, фильтры и ручная настройка. */
+.unitkaSpreadsheetControls {
+  display: flex;
+  align-items: end;
+  flex-wrap: wrap;
+  gap: 12px 18px;
+  margin: 0 0 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--color-line);
+  border-radius: 15px;
+  background: rgba(255, 255, 255, 0.045);
+}
+
+.unitkaSpreadsheetControls > strong {
+  padding: 0 8px 9px 0;
+  color: var(--color-cloud);
+  font-size: 13px;
+}
+
+.unitkaSpreadsheetControls label {
+  display: grid;
+  min-width: 178px;
+  gap: 6px;
+  color: var(--color-ash);
+  font-size: 12px;
+}
+
+.unitkaSpreadsheetControls input[type="range"] {
+  width: 100%;
+  accent-color: #ef6eb8;
+}
+
+.unitkaSpreadsheetControls select {
+  min-height: 32px;
+  padding: 0 8px;
+  border: 1px solid var(--color-line);
+  border-radius: 8px;
+  background: var(--color-graphite);
+  color: var(--color-cloud);
+}
+
+.unitkaSpreadsheetControls .secondaryButton { min-height: 34px; }
+
+.unitkaSpreadsheetWrap {
+  position: relative;
+  max-height: calc(100vh - 250px);
+  border: 1px solid #cfd3d8;
+  border-radius: 13px;
+  background: #f5f6f7;
+  box-shadow: 0 18px 42px rgba(0, 0, 0, 0.2);
+}
+
+.unitkaSpreadsheet {
+  min-width: 0;
+  table-layout: fixed;
+  background: #f5f6f7;
+  color: #292b2f;
+  font-size: inherit;
+}
+
+.unitkaSpreadsheet th,
+.unitkaSpreadsheet td {
+  min-width: 0;
+  height: var(--unitka-row-height);
+  padding: 5px 8px;
+  border-right: 1px solid #d8dce1;
+  border-bottom: 1px solid #d8dce1;
+  color: #292b2f;
+  font-size: inherit;
+  line-height: 1.25;
+  vertical-align: middle;
+}
+
+.unitkaSpreadsheet thead th {
+  position: sticky;
+  top: 0;
+  z-index: 6;
+  height: 76px;
+  padding: 0;
+  background: #e9ecef;
+  text-align: left;
+  text-transform: none;
+}
+
+.unitkaHeader-computed { background: #e8e7ee !important; }
+.unitkaHeader-input:nth-child(1) { background: #f4d8f4 !important; }
+.unitkaHeader-input:nth-child(2) { background: #f2efd8 !important; }
+.unitkaHeader-input:nth-child(5) { background: #ffe1d9 !important; }
+.unitkaHeader-input:nth-child(14) { background: #e2f3cf !important; }
+.unitkaHeader-input:nth-child(17) { background: #d8f1dd !important; }
+.unitkaHeader-computed:nth-child(19) { background: #d9eff3 !important; }
+.unitkaHeader-input:nth-child(22) { background: #e6ddf0 !important; }
+.unitkaHeader-input:nth-child(24) { background: #faeadb !important; }
+
+.unitkaSortButton {
+  display: grid;
+  width: 100%;
+  min-height: 44px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 1px 4px;
+  padding: 7px 9px 4px;
+  border: 0;
+  background: transparent;
+  color: #25272b;
+  cursor: pointer;
+  text-align: left;
+}
+
+.unitkaSortButton:hover { background: rgba(68, 73, 81, 0.08); }
+
+.unitkaColumnLetter {
+  color: #e36596;
+  font-size: 10px;
+  font-weight: 850;
+  letter-spacing: 0.06em;
+}
+
+.unitkaColumnLabel {
+  display: block;
+  grid-column: 1 / -1;
+  overflow: hidden;
+  color: #34363a;
+  font-size: 10px;
+  font-weight: 750;
+  letter-spacing: 0;
+  line-height: 1.15;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.unitkaSortButton b {
+  align-self: center;
+  color: #737780;
+  font-size: 13px;
+}
+
+.unitkaFilterInput {
+  display: block;
+  width: calc(100% - 14px);
+  height: 22px;
+  margin: 0 7px 6px;
+  padding: 0 5px;
+  border: 1px solid #b8bec6;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.92);
+  color: #292b2f;
+  font-size: 10px;
+}
+
+.unitkaFilterInput:focus {
+  border-color: #7465ef;
+  outline: 2px solid rgba(116, 101, 239, 0.16);
+}
+
+.unitkaResizeHandle {
+  position: absolute;
+  top: 0;
+  right: -4px;
+  bottom: 0;
+  z-index: 10;
+  width: 8px;
+  cursor: col-resize;
+}
+
+.unitkaResizeHandle:hover,
+.unitkaResizeHandle:focus { background: rgba(97, 103, 236, 0.38); }
+
+.unitkaSpreadsheet tbody tr { cursor: default; }
+.unitkaSpreadsheet tbody tr:nth-child(even) td { background: #f0f2f4; }
+.unitkaSpreadsheet tbody tr:hover td { background: #e3e9f2; }
+
+.unitkaSpreadsheet .unitkaCellInput {
+  width: 100%;
+  min-width: 0;
+  height: calc(var(--unitka-row-height) - 10px);
+  padding: 2px 4px;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  background: transparent;
+  color: #292b2f;
+  font-size: inherit;
+}
+
+.unitkaSpreadsheet .unitkaCellInput:hover { border-color: #bdc4cc; background: #fff; }
+.unitkaSpreadsheet .unitkaCellInput:focus { border-color: #7465ef; background: #fff; outline: 2px solid rgba(116, 101, 239, 0.13); }
+
+.unitkaSpreadsheet .unitkaComputedCell { background: #f7f7f8; color: #34363a; font-variant-numeric: tabular-nums; }
+.unitkaSpreadsheet tbody tr:nth-child(even) .unitkaComputedCell { background: #f1f1f4; }
+.unitkaSpreadsheet .unitkaTitleCell { background: #f7f7f8; box-shadow: 6px 0 10px rgba(56, 60, 66, 0.07); }
+.unitkaSpreadsheet .unitkaPositiveValue { background: #e0f3e4 !important; color: #18733c !important; }
+.unitkaSpreadsheet .unitkaNegativeValue { background: #ffe2e4 !important; color: #b02a3a !important; }
+
+.unitkaDeleteHeader { background: #e9ecef !important; }
+.unitkaDeleteCell { padding: 3px !important; text-align: center; }
+.unitkaDeleteCell .iconButton { min-width: 30px; min-height: 30px; border-color: #d0d4db; background: #fff; color: #7d3238; }
+.unitkaNoRows { position: sticky; left: 0; width: 100%; margin: 0; padding: 18px; background: #f5f6f7; color: #5e626a; }
+
+@media (max-width: 760px) {
+  .unitkaSpreadsheetControls { align-items: stretch; }
+  .unitkaSpreadsheetControls label { flex: 1 1 150px; }
+  .unitkaSpreadsheetWrap { max-height: calc(100vh - 290px); }
+}

@@ -672,6 +672,63 @@ function formatComputedValue(value: number | null, format?: UnitkaComputedFormat
   return new Intl.NumberFormat("ru-RU", { maximumFractionDigits: 3 }).format(value);
 }
 
+type UnitkaSort = { letter: string; direction: "asc" | "desc" } | null;
+type UnitkaRowDensity = "compact" | "normal" | "comfortable";
+
+const unitkaDensityHeights: Record<UnitkaRowDensity, number> = {
+  compact: 34,
+  normal: 44,
+  comfortable: 56,
+};
+
+function defaultUnitkaColumnWidth(column: UnitkaColumn): number {
+  if (column.letter === "A") return 72;
+  if (column.letter === "G") return 380;
+  if (column.letter === "O") return 190;
+  if (["AS", "AT", "AU"].includes(column.letter)) return 230;
+  if (["B", "F", "P"].includes(column.letter)) return 138;
+  if (column.kind === "computed") return 142;
+  return 126;
+}
+
+function initialUnitkaColumnWidths(): Record<string, number> {
+  try {
+    const stored = localStorage.getItem("leto_unitka_column_widths_v1");
+    if (stored) {
+      const parsed = JSON.parse(stored) as Record<string, number>;
+      if (Object.values(parsed).every((width) => Number.isFinite(width) && width >= 72)) return parsed;
+    }
+  } catch {
+    // Локальная настройка не критична — используем безопасные размеры по умолчанию.
+  }
+  return Object.fromEntries(unitkaColumns.map((column) => [column.letter, defaultUnitkaColumnWidth(column)]));
+}
+
+function unitkaRawValue(item: UnitkaItem, column: UnitkaColumn): string | number | null {
+  if (column.kind === "input") return item.row[column.field] as string | number | null;
+  return item.computed[column.field] as number | null;
+}
+
+function matchesUnitkaFilter(value: string | number | null, filter: string): boolean {
+  const query = filter.trim().toLocaleLowerCase("ru-RU");
+  if (!query) return true;
+  const raw = value === null ? "" : String(value);
+  const numeric = Number(raw);
+  const numericFilter = query.match(/^(>=|<=|>|<|=)?\s*(-?\d+(?:[.,]\d+)?)\s*(?:[-–]\s*(-?\d+(?:[.,]\d+)?))?$/);
+  if (Number.isFinite(numeric) && numericFilter) {
+    const [, operator = "=", firstRaw, secondRaw] = numericFilter;
+    const first = Number(firstRaw.replace(",", "."));
+    const second = secondRaw ? Number(secondRaw.replace(",", ".")) : null;
+    if (second !== null) return numeric >= Math.min(first, second) && numeric <= Math.max(first, second);
+    if (operator === ">") return numeric > first;
+    if (operator === ">=") return numeric >= first;
+    if (operator === "<") return numeric < first;
+    if (operator === "<=") return numeric <= first;
+    return numeric === first;
+  }
+  return raw.toLocaleLowerCase("ru-RU").includes(query);
+}
+
 function UnitkaAssumptionsPanel({
   assumptions,
   saving,
@@ -738,6 +795,73 @@ function UnitkaPage() {
   const [savingId, setSavingId] = useState<string | null>(null);
   const [savingAssumptions, setSavingAssumptions] = useState(false);
   const [showAssumptions, setShowAssumptions] = useState(false);
+  const [columnFilters, setColumnFilters] = useState<Record<string, string>>({});
+  const [sort, setSort] = useState<UnitkaSort>(null);
+  const [columnWidths, setColumnWidths] = useState<Record<string, number>>(initialUnitkaColumnWidths);
+  const [tableScale, setTableScale] = useState(100);
+  const [rowDensity, setRowDensity] = useState<UnitkaRowDensity>("normal");
+
+  useEffect(() => {
+    try {
+      localStorage.setItem("leto_unitka_column_widths_v1", JSON.stringify(columnWidths));
+    } catch {
+      // Таблица остаётся рабочей, даже если браузер не разрешил сохранить настройки.
+    }
+  }, [columnWidths]);
+
+  const visibleItems = useMemo(() => {
+    const filtered = items.filter((item) =>
+      unitkaColumns.every((column) => matchesUnitkaFilter(unitkaRawValue(item, column), columnFilters[column.letter] ?? "")),
+    );
+    if (!sort) return filtered;
+    const column = unitkaColumns.find((candidate) => candidate.letter === sort.letter);
+    if (!column) return filtered;
+    return [...filtered].sort((left, right) => {
+      const first = unitkaRawValue(left, column);
+      const second = unitkaRawValue(right, column);
+      const numericFirst = typeof first === "number" ? first : Number(first);
+      const numericSecond = typeof second === "number" ? second : Number(second);
+      const comparison =
+        Number.isFinite(numericFirst) && Number.isFinite(numericSecond)
+          ? numericFirst - numericSecond
+          : String(first ?? "").localeCompare(String(second ?? ""), "ru", { numeric: true, sensitivity: "base" });
+      return sort.direction === "asc" ? comparison : -comparison;
+    });
+  }, [items, columnFilters, sort]);
+
+  const totalTableWidth = useMemo(
+    () => unitkaColumns.reduce((sum, column) => sum + (columnWidths[column.letter] ?? defaultUnitkaColumnWidth(column)), 0) + 52,
+    [columnWidths],
+  );
+
+  function toggleSort(letter: string) {
+    setSort((previous) =>
+      previous?.letter === letter
+        ? { letter, direction: previous.direction === "asc" ? "desc" : "asc" }
+        : { letter, direction: "asc" },
+    );
+  }
+
+  function beginColumnResize(letter: string, startX: number) {
+    const initialWidth = columnWidths[letter] ?? defaultUnitkaColumnWidth(unitkaColumns.find((column) => column.letter === letter)!);
+    const onMove = (event: PointerEvent) => {
+      setColumnWidths((previous) => ({ ...previous, [letter]: Math.max(72, initialWidth + event.clientX - startX) }));
+    };
+    const onUp = () => {
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+    };
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp, { once: true });
+  }
+
+  function resetTableLayout() {
+    setColumnWidths(Object.fromEntries(unitkaColumns.map((column) => [column.letter, defaultUnitkaColumnWidth(column)])));
+    setColumnFilters({});
+    setSort(null);
+    setTableScale(100);
+    setRowDensity("normal");
+  }
 
   function load() {
     setLoading(true);
@@ -880,62 +1004,134 @@ function UnitkaPage() {
           <p>Кнопка со значком таблицы вверху — выберите ваш файл «Юнитка Лето СМ.xlsx».</p>
         </div>
       ) : (
-        <div className="unitkaTableWrap">
-          <table className="unitkaTable">
-            <thead>
-              <tr>
+        <>
+          <div className="unitkaSpreadsheetControls">
+            <strong>{visibleItems.length} из {items.length} строк</strong>
+            <label>
+              <span>Масштаб: {tableScale}%</span>
+              <input
+                type="range"
+                min="70"
+                max="130"
+                step="5"
+                value={tableScale}
+                onChange={(event) => setTableScale(Number(event.target.value))}
+              />
+            </label>
+            <label>
+              <span>Высота строк</span>
+              <select value={rowDensity} onChange={(event) => setRowDensity(event.target.value as UnitkaRowDensity)}>
+                <option value="compact">Компактная</option>
+                <option value="normal">Обычная</option>
+                <option value="comfortable">Свободная</option>
+              </select>
+            </label>
+            <button className="secondaryButton" type="button" onClick={resetTableLayout}>
+              Сбросить вид
+            </button>
+          </div>
+          <div className="unitkaTableWrap unitkaSpreadsheetWrap">
+            <table
+              className="unitkaTable unitkaSpreadsheet"
+              style={
+                {
+                  width: totalTableWidth,
+                  fontSize: `${(12 * tableScale) / 100}px`,
+                  "--unitka-row-height": `${Math.round(
+                    (unitkaDensityHeights[rowDensity] * tableScale) / 100,
+                  )}px`,
+                } as CSSProperties
+              }
+            >
+              <colgroup>
                 {unitkaColumns.map((column) => (
-                  <th key={column.letter} title={column.label}>
-                    <span>{column.letter}</span>
-                    {column.label}
-                  </th>
+                  <col key={column.letter} style={{ width: columnWidths[column.letter] ?? defaultUnitkaColumnWidth(column) }} />
                 ))}
-                <th />
-              </tr>
-            </thead>
-            <tbody>
-              {items.map((item) => (
-                <tr key={item.row.id} className={savingId === item.row.id ? "unitkaRowSaving" : ""}>
+                <col style={{ width: 52 }} />
+              </colgroup>
+              <thead>
+                <tr>
                   {unitkaColumns.map((column) => {
-                    if (column.kind === "input") {
-                      return (
-                        <td key={column.letter} className={column.className}>
-                          <EditableCell
-                            type={column.inputType}
-                            value={item.row[column.field] as string | number | null}
-                            onCommit={(value) => void commitField(column, item, value)}
-                          />
-                        </td>
-                      );
-                    }
-                    const value = item.computed[column.field] as number | null;
-                    const signClass =
-                      (column.field === "net_profit" || column.field === "profitability_percent") && value !== null
-                        ? value >= 0
-                          ? " unitkaPositiveValue"
-                          : " unitkaNegativeValue"
-                        : "";
+                    const sortIndicator = sort?.letter === column.letter ? (sort.direction === "asc" ? "↑" : "↓") : "↕";
                     return (
-                      <td key={column.letter} className={`unitkaComputedCell${signClass} ${column.className ?? ""}`}>
-                        {formatComputedValue(value, column.format)}
-                      </td>
+                      <th key={column.letter} className={`unitkaHeader unitkaHeader-${column.kind}`}>
+                        <button
+                          className="unitkaSortButton"
+                          type="button"
+                          title={`Сортировать по «${column.label}»`}
+                          onClick={() => toggleSort(column.letter)}
+                        >
+                          <span className="unitkaColumnLetter">{column.letter}</span>
+                          <span className="unitkaColumnLabel">{column.label}</span>
+                          <b aria-hidden="true">{sortIndicator}</b>
+                        </button>
+                        <input
+                          className="unitkaFilterInput"
+                          value={columnFilters[column.letter] ?? ""}
+                          onChange={(event) => setColumnFilters((previous) => ({ ...previous, [column.letter]: event.target.value }))}
+                          placeholder="Фильтр"
+                          aria-label={`Фильтр: ${column.label}`}
+                        />
+                        <span
+                          className="unitkaResizeHandle"
+                          role="separator"
+                          aria-label={`Изменить ширину столбца «${column.label}»`}
+                          onPointerDown={(event) => {
+                            event.preventDefault();
+                            beginColumnResize(column.letter, event.clientX);
+                          }}
+                        />
+                      </th>
                     );
                   })}
-                  <td>
-                    <button
-                      className="iconButton"
-                      type="button"
-                      title="Удалить строку"
-                      onClick={() => void handleDeleteRow(item.row.id)}
-                    >
-                      ×
-                    </button>
-                  </td>
+                  <th className="unitkaDeleteHeader" />
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {visibleItems.map((item) => (
+                  <tr key={item.row.id} className={savingId === item.row.id ? "unitkaRowSaving" : ""}>
+                    {unitkaColumns.map((column) => {
+                      if (column.kind === "input") {
+                        return (
+                          <td key={column.letter} className={column.className}>
+                            <EditableCell
+                              type={column.inputType}
+                              value={item.row[column.field] as string | number | null}
+                              onCommit={(value) => void commitField(column, item, value)}
+                            />
+                          </td>
+                        );
+                      }
+                      const value = item.computed[column.field] as number | null;
+                      const signClass =
+                        (column.field === "net_profit" || column.field === "profitability_percent") && value !== null
+                          ? value >= 0
+                            ? " unitkaPositiveValue"
+                            : " unitkaNegativeValue"
+                          : "";
+                      return (
+                        <td key={column.letter} className={`unitkaComputedCell${signClass} ${column.className ?? ""}`}>
+                          {formatComputedValue(value, column.format)}
+                        </td>
+                      );
+                    })}
+                    <td className="unitkaDeleteCell">
+                      <button
+                        className="iconButton"
+                        type="button"
+                        title="Удалить строку"
+                        onClick={() => void handleDeleteRow(item.row.id)}
+                      >
+                        ×
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {visibleItems.length === 0 && <p className="unitkaNoRows">По фильтрам ничего не найдено.</p>}
+          </div>
+        </>
       )}
     </div>
   );
