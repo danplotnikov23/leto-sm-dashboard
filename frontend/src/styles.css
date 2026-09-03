@@ -82,12 +82,17 @@ body {
   min-width: 320px;
   background: var(--color-obsidian);
   color: var(--color-cloud);
+  font-weight: 400;
+  line-height: 1.2;
 }
 
 button,
 input,
-select {
+select,
+textarea {
   font: inherit;
+  font-weight: 400;
+  line-height: 1.2;
 }
 
 .shell {
@@ -2867,20 +2872,34 @@ tbody tr:hover td { background: rgba(246, 115, 210, 0.055); }
   text-transform: none;
 }
 
-.unitkaColumnLettersRow th > span:first-child {
+.unitkaColumnLetterButton {
   display: block;
+  width: 100%;
+  height: 24px;
+  border: 0;
+  background: transparent;
   color: #fff;
   font-size: 10px;
-  font-weight: 800;
+  font-weight: 600;
   line-height: 24px;
   letter-spacing: 0.04em;
+  cursor: pointer;
+}
+
+.unitkaColumnLetterButton:hover,
+.unitkaColumnLetterButton-selected {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.unitkaColumnLetterButton-selected {
+  box-shadow: inset 0 -2px 0 #ffad78;
 }
 
 .unitkaSpreadsheet .unitkaColumnHeadersRow th {
   position: sticky;
   top: 24px;
   z-index: 8;
-  height: 58px;
+  height: 84px;
   padding: 0;
   background: #e9ecef;
   text-align: left;
@@ -2890,7 +2909,7 @@ tbody tr:hover td { background: rgba(246, 115, 210, 0.055); }
 .unitkaSpreadsheet .unitkaDeleteHeader {
   top: 0;
   z-index: 10;
-  height: 82px;
+  height: 108px;
 }
 
 .unitkaHeader-computed { background: #e8e7ee !important; }
@@ -2906,10 +2925,11 @@ tbody tr:hover td { background: rgba(246, 115, 210, 0.055); }
 .unitkaSortButton {
   display: grid;
   width: 100%;
-  min-height: 31px;
+  min-height: 50px;
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 4px;
-  padding: 7px 9px 3px;
+  align-items: start;
+  padding: 8px 9px 4px;
   border: 0;
   background: transparent;
   color: #25272b;
@@ -2921,12 +2941,12 @@ tbody tr:hover td { background: rgba(246, 115, 210, 0.055); }
 
 .unitkaColumnLabel {
   display: block;
-  overflow: hidden;
+  overflow: visible;
   color: #34363a;
-  font-size: 11px;
-  font-weight: 700;
+  font-size: 12px;
+  font-weight: 500;
   letter-spacing: 0;
-  line-height: 1.1;
+  line-height: 1.18;
   text-transform: none;
   white-space: normal;
 }
@@ -2935,6 +2955,7 @@ tbody tr:hover td { background: rgba(246, 115, 210, 0.055); }
   align-self: center;
   color: #737780;
   font-size: 13px;
+  font-weight: 600;
 }
 
 .unitkaFilterInput {
@@ -3021,6 +3042,7 @@ tbody tr:hover td { background: rgba(246, 115, 210, 0.055); }
 .unitkaSpreadsheet .unitkaConditionStockLow { background: var(--unitka-stock-low) !important; color: #705100 !important; }
 .unitkaSpreadsheet .unitkaPositiveValue { background: var(--unitka-positive) !important; color: #18733c !important; }
 .unitkaSpreadsheet .unitkaNegativeValue { background: var(--unitka-negative) !important; color: #b02a3a !important; }
+.unitkaSpreadsheet .unitkaConditionCustom { background: var(--unitka-rule-color) !important; color: #292b2f !important; }
 
 .unitkaDeleteHeader { background: #e9ecef !important; }
 .unitkaDeleteCell { padding: 3px !important; text-align: center; }
@@ -3075,10 +3097,58 @@ tbody tr:hover td { background: rgba(246, 115, 210, 0.055); }
 
 .unitkaAppearanceGrid .secondaryButton { min-height: 32px; font-size: 12px; }
 
+.unitkaRuleEditor {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: minmax(190px, 1fr) minmax(130px, 0.55fr) minmax(90px, 0.35fr) 72px auto;
+  align-items: end;
+  gap: 8px;
+  padding: 11px;
+  border: 1px solid var(--color-line);
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.unitkaRuleEditor strong {
+  align-self: center;
+  color: var(--color-cloud);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.unitkaRuleEditor input[type="number"] {
+  min-width: 0;
+  min-height: 32px;
+  padding: 0 8px;
+  border: 1px solid var(--color-line);
+  border-radius: 7px;
+  background: var(--color-graphite);
+  color: var(--color-cloud);
+}
+
+.unitkaFreezeControls {
+  display: grid;
+  gap: 6px;
+  min-width: 226px;
+  color: var(--color-ash);
+  font-size: 12px;
+}
+
+.unitkaFreezeControls > div { display: flex; gap: 6px; }
+.unitkaFreezeControls .secondaryButton { min-height: 32px; padding: 0 9px; font-size: 12px; }
+.unitkaFreezeControls .secondaryButton:disabled { cursor: not-allowed; opacity: 0.45; }
+
+.appContent { font-weight: 400; line-height: 1.24; }
+.appContent p { line-height: 1.28; }
+.appContent h1,
+.appContent h2,
+.appContent h3 { font-weight: 700; line-height: 1.08; }
+
 @media (max-width: 760px) {
   .unitkaSpreadsheetControls { align-items: stretch; }
   .unitkaSpreadsheetControls label { flex: 1 1 150px; }
   .unitkaSpreadsheetWrap { max-height: calc(100vh - 290px); }
   .unitkaAppearancePanel { grid-template-columns: 1fr; }
   .unitkaAppearanceGrid { grid-template-columns: repeat(2, minmax(130px, 1fr)); }
+  .unitkaRuleEditor { grid-template-columns: 1fr 1fr; }
 }
