@@ -708,6 +708,12 @@ const defaultUnitkaAppearance: UnitkaAppearance = {
   columnRules: {},
 };
 
+const defaultUnitkaColumnRule: UnitkaColumnRule = {
+  operator: "lt",
+  threshold: 0,
+  color: "#fff1c7",
+};
+
 function initialUnitkaAppearance(): UnitkaAppearance {
   try {
     const stored = localStorage.getItem("leto_unitka_appearance_v1");
@@ -848,6 +854,7 @@ function UnitkaPage() {
   const [appearance, setAppearance] = useState<UnitkaAppearance>(initialUnitkaAppearance);
   const [showAppearance, setShowAppearance] = useState(false);
   const [colorColumn, setColorColumn] = useState("E");
+  const [ruleDraft, setRuleDraft] = useState<UnitkaColumnRule>(defaultUnitkaColumnRule);
 
   useEffect(() => {
     try {
@@ -864,6 +871,10 @@ function UnitkaPage() {
       // Таблица продолжает работать, даже если браузер запретил localStorage.
     }
   }, [appearance]);
+
+  useEffect(() => {
+    setRuleDraft(appearance.columnRules[colorColumn] ?? defaultUnitkaColumnRule);
+  }, [colorColumn]);
 
   const visibleItems = useMemo(() => {
     const filtered = items.filter((item) =>
@@ -898,6 +909,12 @@ function UnitkaPage() {
       return current;
     });
   }, [columnWidths]);
+
+  const selectedColumn = useMemo(
+    () => unitkaColumns.find((column) => column.letter === colorColumn) ?? unitkaColumns[0],
+    [colorColumn],
+  );
+  const selectedColumnSupportsRule = selectedColumn.kind === "computed" || selectedColumn.inputType === "number";
 
   function toggleSort(letter: string) {
     setSort((previous) =>
@@ -956,7 +973,7 @@ function UnitkaPage() {
       ...previous,
       columnRules: {
         ...previous.columnRules,
-        [letter]: { ...(previous.columnRules[letter] ?? { operator: "lt", threshold: 0, color: "#fff1c7" }), ...change },
+        [letter]: { ...(previous.columnRules[letter] ?? defaultUnitkaColumnRule), ...change },
       },
     }));
   }
@@ -1245,34 +1262,57 @@ function UnitkaPage() {
                   Сбросить цвет столбца
                 </button>
                 <div className="unitkaRuleEditor">
-                  <strong>Условное правило · {colorColumn} · {unitkaColumns.find((column) => column.letter === colorColumn)?.label}</strong>
-                  <select
-                    aria-label="Условие форматирования"
-                    value={appearance.columnRules[colorColumn]?.operator ?? "lt"}
-                    onChange={(event) => updateColumnRule(colorColumn, { operator: event.target.value as UnitkaRuleOperator })}
-                  >
-                    <option value="lt">меньше</option>
-                    <option value="lte">меньше или равно</option>
-                    <option value="gt">больше</option>
-                    <option value="gte">больше или равно</option>
-                    <option value="eq">равно</option>
-                  </select>
-                  <input
-                    aria-label="Значение для условного форматирования"
-                    type="number"
-                    step="any"
-                    value={appearance.columnRules[colorColumn]?.threshold ?? 0}
-                    onChange={(event) => updateColumnRule(colorColumn, { threshold: Number(event.target.value) || 0 })}
-                  />
-                  <input
-                    aria-label="Цвет условного форматирования"
-                    type="color"
-                    value={appearance.columnRules[colorColumn]?.color ?? "#fff1c7"}
-                    onChange={(event) => updateColumnRule(colorColumn, { color: event.target.value })}
-                  />
-                  <button className="secondaryButton" type="button" onClick={() => clearColumnRule(colorColumn)}>
-                    Убрать правило
-                  </button>
+                  <strong>Условное правило · {colorColumn} · {selectedColumn.label}</strong>
+                  {selectedColumnSupportsRule ? (
+                    <>
+                      <select
+                        aria-label="Условие форматирования"
+                        value={ruleDraft.operator}
+                        onChange={(event) => setRuleDraft((previous) => ({ ...previous, operator: event.target.value as UnitkaRuleOperator }))}
+                      >
+                        <option value="lt">меньше</option>
+                        <option value="lte">меньше или равно</option>
+                        <option value="gt">больше</option>
+                        <option value="gte">больше или равно</option>
+                        <option value="eq">равно</option>
+                      </select>
+                      <input
+                        aria-label="Значение для условного форматирования"
+                        type="number"
+                        step="any"
+                        value={ruleDraft.threshold}
+                        onChange={(event) => setRuleDraft((previous) => ({ ...previous, threshold: Number(event.target.value) || 0 }))}
+                      />
+                      <input
+                        aria-label="Цвет условного форматирования"
+                        type="color"
+                        value={ruleDraft.color}
+                        onChange={(event) => setRuleDraft((previous) => ({ ...previous, color: event.target.value }))}
+                      />
+                      <button
+                        className="uploadButton"
+                        type="button"
+                        onClick={() => {
+                          updateColumnRule(colorColumn, ruleDraft);
+                          setNotice(`Правило для «${selectedColumn.label}» применено.`);
+                        }}
+                      >
+                        Применить правило
+                      </button>
+                      <button
+                        className="secondaryButton"
+                        type="button"
+                        onClick={() => {
+                          clearColumnRule(colorColumn);
+                          setRuleDraft(defaultUnitkaColumnRule);
+                        }}
+                      >
+                        Убрать правило
+                      </button>
+                    </>
+                  ) : (
+                    <p>Для текстовых столбцов доступен ручной цвет. Условное правило можно задать только для чисел.</p>
+                  )}
                 </div>
               </div>
             </section>
@@ -1509,7 +1549,7 @@ function PurchasePricesPage() {
       {!snapshot ? (
         <div className="comingSoon">
           <h2>Проверьте закупочные цены</h2>
-          <p>Сервис возьмёт опубликованные offer_id из Ozon и сопоставит их с ценой tdcsm.ru и Юниткой.</p>
+          <p>Сервис сопоставит опубликованные offer_id из Ozon с публичной ценой tdcsm.ru и Юниткой. Авторизованная партнёрская цена из Chrome будет подключена отдельным безопасным мостом.</p>
         </div>
       ) : (
         <>
@@ -1534,7 +1574,7 @@ function PurchasePricesPage() {
             <table className="purchasePricesTable">
               <thead>
                 <tr>
-                  <th>offer_id</th><th>Товар</th><th>Цена в Юнитке</th><th>Цена tdcsm.ru</th><th>Дельта</th><th>Статус</th>
+                  <th>offer_id</th><th>Товар</th><th>Цена в Юнитке</th><th>Публичная цена tdcsm.ru</th><th>Дельта</th><th>Статус</th>
                 </tr>
               </thead>
               <tbody>

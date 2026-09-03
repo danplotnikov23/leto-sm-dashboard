@@ -1,6 +1,6 @@
 from app.domain.unitka import UnitkaRow
 from app.services.purchase_price_monitor import reconcile_purchase_prices
-from app.services.tdcsm_client import TdcsmStockInfo
+from app.services.tdcsm_client import TdcsmClient, TdcsmStockInfo
 
 
 def _supplier(idcode: str, price: float) -> TdcsmStockInfo:
@@ -46,3 +46,21 @@ def test_reconcile_does_not_mark_equal_price_as_difference() -> None:
 
     assert snapshot.diff_count == 0
     assert snapshot.rows[0].delta == 0
+
+
+def test_tdcsm_price_is_not_multiplied_by_logistics_contain() -> None:
+    product = TdcsmClient._to_stock_info(
+        {
+            "idcode": "00002735",
+            "name": "Саморез &#215;",
+            "price": 603,
+            "contain": 16,
+            "store": 336,
+            "only_contain_order": False,
+        }
+    )
+
+    assert product.purchase_price == 603
+    assert product.contain == 16
+    assert product.sellable_stock == 336
+    assert product.name == "Саморез ×"

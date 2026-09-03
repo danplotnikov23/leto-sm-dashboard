@@ -1,4 +1,4 @@
-"""Публичный API поставщика tdcsm.ru — остатки по idcode (без логина).
+"""Публичный API поставщика tdcsm.ru — остатки и публичные цены по idcode.
 
 Перенос 1:1 из `projects/stock-monitor/apis.py::tdcsm_stock_for_idcodes` (тот же
 рабочий код, что уже используется в ежедневном Telegram-боте «Остатки Лето СМ»),
@@ -22,14 +22,9 @@ class TdcsmStockInfo(BaseModel):
     only_contain_order: bool
     name: str
     discontinued: bool
-    # Цена в ответе tdcsm.ru — за БАЗОВУЮ единицу (тот же принцип, что store/contain
-    # для остатков, см. docstring stock_for_idcodes). purchase_price — это уже цена за
-    # продаваемую на Ozon единицу (упаковку), готовая идти в столбец X юнитки.
-    # Проверено 2026-09-02: сверка с уже занесёнными X по 3 реальным SKU (Laguna 900,
-    # топор DDE, шурупы уп.100) — во всех трёх tdcsm-цена (price * contain) стабильно
-    # на 26-39% выше устаревшего значения в юнитке, а НЕ голое price без умножения
-    # (которое давало бы разрыв на порядок для товара с contain=100) — подтверждает,
-    # что нужно именно price * contain.
+    # `price` — цена продаваемой карточки; `contain` — вложение в логистической
+    # упаковке. Умножать их нельзя: 603 ₽ при contain=16 иначе превращаются в 9 648 ₽.
+    # purchase_price пока содержит публичную цену до авторизованной сверки.
     price_per_base_unit: float
     purchase_price: float
 
@@ -61,31 +56,27 @@ class TdcsmClient:
                 )
                 response.raise_for_status()
                 for item in response.json():
-                    contain = item.get("contain") or 1
-                    only_contain_order = bool(item.get("only_contain_order"))
-                    # tdcsm.ru иногда отдаёт "store": null (не отсутствие поля, а явный null —
-                    # .get(key, 0) в этом случае вернул бы None, не 0) для товаров без учёта
-                    # остатка на их стороне. Трактуем как 0 — это безопасное направление
-                    # ошибки (лучше ложно показать "нет в наличии", чем скрыть реальный ноль).
-                    store = item.get("store")
-                    store = 0 if store is None else store
-                    sellable_stock = (
-                        store // contain if (only_contain_order and contain > 1) else store
-                    )
-                    price_per_base_unit = float(item.get("price") or 0)
-                    result[item["idcode"]] = TdcsmStockInfo(
-                        idcode=item["idcode"],
-                        store=store,
-                        sellable_stock=sellable_stock,
-                        contain=contain,
-                        only_contain_order=only_contain_order,
-                        price_per_base_unit=price_per_base_unit,
-                        purchase_price=round(price_per_base_unit * contain, 2),
-                        # tdcsm.ru отдаёт название с HTML-сущностями (например "&#215;" вместо
-                        # "×") — их декодирует Telegram (parse_mode=HTML в checker.py), но не
-                        # декодирует обычный текстовый рендер в браузере, поэтому распаковываем
-                        # здесь, один раз, для всех потребителей этого клиента.
-                        name=html.unescape(item.get("name", "")),
-                        discontinued=item.get("discontinued", False),
-                    )
+                    product = self._to_stock_info(item)
+                    result[product.idcode] = product
         return result
+
+    @staticmethod
+    def _to_stock_info(item: dict[str, object]) -> TdcsmStockInfo:
+        contain = int(item.get("contain") or 1)
+        only_contain_order = bool(item.get("only_contain_order"))
+        # tdcsm.ru иногда отдаёт "store": null. Показываем 0, а не выдумываем остаток.
+        store_value = item.get("store")
+        store = 0 if store_value is None else int(store_value)
+        sellable_stock = store // contain if (only_contain_order and contain > 1) else store
+        price = float(item.get("price") or 0)
+        return TdcsmStockInfo(
+            idcode=str(item["idcode"]),
+            store=store,
+            sellable_stock=sellable_stock,
+            contain=contain,
+            only_contain_order=only_contain_order,
+            price_per_base_unit=price,
+            purchase_price=round(price, 2),
+            name=html.unescape(str(item.get("name", ""))),
+            discontinued=bool(item.get("discontinued", False)),
+        )

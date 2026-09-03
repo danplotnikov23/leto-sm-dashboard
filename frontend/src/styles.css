@@ -3100,7 +3100,7 @@ tbody tr:hover td { background: rgba(246, 115, 210, 0.055); }
 .unitkaRuleEditor {
   display: grid;
   grid-column: 1 / -1;
-  grid-template-columns: minmax(190px, 1fr) minmax(130px, 0.55fr) minmax(90px, 0.35fr) 72px auto;
+  grid-template-columns: minmax(190px, 1fr) minmax(130px, 0.55fr) minmax(90px, 0.35fr) 72px auto auto;
   align-items: end;
   gap: 8px;
   padding: 11px;
@@ -3114,6 +3114,13 @@ tbody tr:hover td { background: rgba(246, 115, 210, 0.055); }
   color: var(--color-cloud);
   font-size: 12px;
   font-weight: 600;
+}
+
+.unitkaRuleEditor p {
+  grid-column: span 5;
+  margin: 0;
+  color: var(--color-ash);
+  font-size: 12px;
 }
 
 .unitkaRuleEditor input[type="number"] {
