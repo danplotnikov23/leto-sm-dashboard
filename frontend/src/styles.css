@@ -2855,15 +2855,42 @@ tbody tr:hover td { background: rgba(246, 115, 210, 0.055); }
   vertical-align: middle;
 }
 
-.unitkaSpreadsheet thead th {
+.unitkaSpreadsheet .unitkaColumnLettersRow th {
   position: sticky;
   top: 0;
-  z-index: 6;
-  height: 76px;
+  z-index: 9;
+  height: 24px;
+  padding: 0;
+  background: #34383f;
+  color: #fff;
+  text-align: center;
+  text-transform: none;
+}
+
+.unitkaColumnLettersRow th > span:first-child {
+  display: block;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 24px;
+  letter-spacing: 0.04em;
+}
+
+.unitkaSpreadsheet .unitkaColumnHeadersRow th {
+  position: sticky;
+  top: 24px;
+  z-index: 8;
+  height: 58px;
   padding: 0;
   background: #e9ecef;
   text-align: left;
   text-transform: none;
+}
+
+.unitkaSpreadsheet .unitkaDeleteHeader {
+  top: 0;
+  z-index: 10;
+  height: 82px;
 }
 
 .unitkaHeader-computed { background: #e8e7ee !important; }
@@ -2879,10 +2906,10 @@ tbody tr:hover td { background: rgba(246, 115, 210, 0.055); }
 .unitkaSortButton {
   display: grid;
   width: 100%;
-  min-height: 44px;
+  min-height: 31px;
   grid-template-columns: minmax(0, 1fr) auto;
-  gap: 1px 4px;
-  padding: 7px 9px 4px;
+  gap: 4px;
+  padding: 7px 9px 3px;
   border: 0;
   background: transparent;
   color: #25272b;
@@ -2892,25 +2919,16 @@ tbody tr:hover td { background: rgba(246, 115, 210, 0.055); }
 
 .unitkaSortButton:hover { background: rgba(68, 73, 81, 0.08); }
 
-.unitkaColumnLetter {
-  color: #e36596;
-  font-size: 10px;
-  font-weight: 850;
-  letter-spacing: 0.06em;
-}
-
 .unitkaColumnLabel {
   display: block;
-  grid-column: 1 / -1;
   overflow: hidden;
   color: #34363a;
-  font-size: 10px;
-  font-weight: 750;
+  font-size: 11px;
+  font-weight: 700;
   letter-spacing: 0;
-  line-height: 1.15;
-  text-overflow: ellipsis;
-  text-transform: uppercase;
-  white-space: nowrap;
+  line-height: 1.1;
+  text-transform: none;
+  white-space: normal;
 }
 
 .unitkaSortButton b {
@@ -2923,7 +2941,7 @@ tbody tr:hover td { background: rgba(246, 115, 210, 0.055); }
   display: block;
   width: calc(100% - 14px);
   height: 22px;
-  margin: 0 7px 6px;
+  margin: 0 7px 5px;
   padding: 0 5px;
   border: 1px solid #b8bec6;
   border-radius: 3px;
@@ -2942,7 +2960,7 @@ tbody tr:hover td { background: rgba(246, 115, 210, 0.055); }
   top: 0;
   right: -4px;
   bottom: 0;
-  z-index: 10;
+  z-index: 12;
   width: 8px;
   cursor: col-resize;
 }
@@ -2971,17 +2989,96 @@ tbody tr:hover td { background: rgba(246, 115, 210, 0.055); }
 
 .unitkaSpreadsheet .unitkaComputedCell { background: #f7f7f8; color: #34363a; font-variant-numeric: tabular-nums; }
 .unitkaSpreadsheet tbody tr:nth-child(even) .unitkaComputedCell { background: #f1f1f4; }
-.unitkaSpreadsheet .unitkaTitleCell { background: #f7f7f8; box-shadow: 6px 0 10px rgba(56, 60, 66, 0.07); }
-.unitkaSpreadsheet .unitkaPositiveValue { background: #e0f3e4 !important; color: #18733c !important; }
-.unitkaSpreadsheet .unitkaNegativeValue { background: #ffe2e4 !important; color: #b02a3a !important; }
+.unitkaSpreadsheet .unitkaTitleCell {
+  position: static;
+  left: auto;
+  z-index: auto;
+  min-width: 0 !important;
+  background: #f7f7f8;
+  box-shadow: none;
+}
+
+.unitkaSpreadsheet .unitkaColumnLettersRow th:nth-child(7),
+.unitkaSpreadsheet .unitkaColumnHeadersRow th:nth-child(7) {
+  left: auto;
+  min-width: 0 !important;
+  box-shadow: none;
+}
+
+.unitkaSpreadsheet .unitkaFrozenCell {
+  position: sticky !important;
+  z-index: 5;
+  box-shadow: 5px 0 8px rgba(56, 60, 66, 0.09);
+}
+
+.unitkaSpreadsheet .unitkaColumnLettersRow .unitkaFrozenCell { z-index: 13; }
+.unitkaSpreadsheet .unitkaColumnHeadersRow .unitkaFrozenCell { z-index: 12; }
+
+.unitkaSpreadsheet .unitkaColumnTint { background: color-mix(in srgb, var(--unitka-custom-column-color) 16%, #fff) !important; }
+.unitkaSpreadsheet .unitkaColumnLettersRow .unitkaColumnTint { background: color-mix(in srgb, var(--unitka-custom-column-color) 64%, #34383f) !important; }
+.unitkaSpreadsheet .unitkaColumnHeadersRow .unitkaColumnTint { background: color-mix(in srgb, var(--unitka-custom-column-color) 48%, #fff) !important; }
+.unitkaSpreadsheet .unitkaConditionStockZero { background: var(--unitka-stock-zero) !important; color: #90212d !important; }
+.unitkaSpreadsheet .unitkaConditionStockLow { background: var(--unitka-stock-low) !important; color: #705100 !important; }
+.unitkaSpreadsheet .unitkaPositiveValue { background: var(--unitka-positive) !important; color: #18733c !important; }
+.unitkaSpreadsheet .unitkaNegativeValue { background: var(--unitka-negative) !important; color: #b02a3a !important; }
 
 .unitkaDeleteHeader { background: #e9ecef !important; }
 .unitkaDeleteCell { padding: 3px !important; text-align: center; }
 .unitkaDeleteCell .iconButton { min-width: 30px; min-height: 30px; border-color: #d0d4db; background: #fff; color: #7d3238; }
 .unitkaNoRows { position: sticky; left: 0; width: 100%; margin: 0; padding: 18px; background: #f5f6f7; color: #5e626a; }
 
+.unitkaAppearancePanel {
+  display: grid;
+  grid-template-columns: minmax(260px, 0.75fr) minmax(0, 1.25fr);
+  gap: 18px;
+  margin: 0 0 12px;
+  padding: 16px;
+  border: 1px solid var(--color-line);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.045);
+}
+
+.unitkaAppearancePanel h3 { margin: 0; color: var(--color-cloud); font-size: 15px; }
+.unitkaAppearancePanel p { margin: 6px 0 0; color: var(--color-ash); font-size: 12px; line-height: 1.4; }
+
+.unitkaAppearanceGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(130px, 1fr));
+  align-items: end;
+  gap: 10px;
+}
+
+.unitkaAppearanceGrid label {
+  display: grid;
+  gap: 5px;
+  color: var(--color-ash);
+  font-size: 11px;
+}
+
+.unitkaAppearanceGrid input[type="color"] {
+  width: 100%;
+  min-height: 32px;
+  padding: 2px;
+  border: 1px solid var(--color-line);
+  border-radius: 7px;
+  background: var(--color-graphite);
+}
+
+.unitkaAppearanceGrid select {
+  min-height: 32px;
+  padding: 0 8px;
+  border: 1px solid var(--color-line);
+  border-radius: 7px;
+  background: var(--color-graphite);
+  color: var(--color-cloud);
+}
+
+.unitkaAppearanceGrid .secondaryButton { min-height: 32px; font-size: 12px; }
+
 @media (max-width: 760px) {
   .unitkaSpreadsheetControls { align-items: stretch; }
   .unitkaSpreadsheetControls label { flex: 1 1 150px; }
   .unitkaSpreadsheetWrap { max-height: calc(100vh - 290px); }
+  .unitkaAppearancePanel { grid-template-columns: 1fr; }
+  .unitkaAppearanceGrid { grid-template-columns: repeat(2, minmax(130px, 1fr)); }
 }

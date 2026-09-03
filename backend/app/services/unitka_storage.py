@@ -10,13 +10,38 @@
 from __future__ import annotations
 
 import sqlite3
+from os import getenv
+from shutil import copy2
 from datetime import UTC, datetime
 from pathlib import Path
 from uuid import uuid4
 
 from app.domain.unitka import UnitkaAssumptions, UnitkaRow
 
-DB_PATH = Path(__file__).resolve().parents[2] / "unitka_data.db"
+_APP_ROOT = Path(__file__).resolve().parents[2]
+
+
+def _database_path() -> Path:
+    """Возвращает путь к живой Юнитке на постоянном диске, если он подключён.
+
+    На Render том подключается в `/app/uploads`. Раньше SQLite-файл жил рядом
+    с кодом в `/app`, поэтому переживал только жизнь текущего контейнера. При
+    первом запуске после обновления переносим старый файл в том, не затирая уже
+    существующую постоянную базу.
+    """
+
+    configured = getenv("UNITKA_DATA_DIR")
+    persistent_dir = Path(configured) if configured else Path("/app/uploads")
+    if persistent_dir.exists() and persistent_dir.is_dir():
+        persistent_path = persistent_dir / "unitka_data.db"
+        legacy_path = _APP_ROOT / "unitka_data.db"
+        if not persistent_path.exists() and legacy_path.exists():
+            copy2(legacy_path, persistent_path)
+        return persistent_path
+    return _APP_ROOT / "unitka_data.db"
+
+
+DB_PATH = _database_path()
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS unitka_rows (

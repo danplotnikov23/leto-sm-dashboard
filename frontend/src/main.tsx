@@ -674,12 +674,47 @@ function formatComputedValue(value: number | null, format?: UnitkaComputedFormat
 
 type UnitkaSort = { letter: string; direction: "asc" | "desc" } | null;
 type UnitkaRowDensity = "compact" | "normal" | "comfortable";
+type UnitkaConditionKey = "stockZero" | "stockLow" | "positive" | "negative";
+
+type UnitkaAppearance = {
+  freezeBaseColumns: boolean;
+  columnColors: Record<string, string>;
+  conditionColors: Record<UnitkaConditionKey, string>;
+};
 
 const unitkaDensityHeights: Record<UnitkaRowDensity, number> = {
   compact: 34,
   normal: 44,
   comfortable: 56,
 };
+
+const defaultUnitkaAppearance: UnitkaAppearance = {
+  freezeBaseColumns: false,
+  columnColors: {},
+  conditionColors: {
+    stockZero: "#ffd9dd",
+    stockLow: "#fff1c7",
+    positive: "#dff3e4",
+    negative: "#ffdfe3",
+  },
+};
+
+function initialUnitkaAppearance(): UnitkaAppearance {
+  try {
+    const stored = localStorage.getItem("leto_unitka_appearance_v1");
+    if (stored) {
+      const parsed = JSON.parse(stored) as Partial<UnitkaAppearance>;
+      return {
+        freezeBaseColumns: Boolean(parsed.freezeBaseColumns),
+        columnColors: parsed.columnColors ?? {},
+        conditionColors: { ...defaultUnitkaAppearance.conditionColors, ...parsed.conditionColors },
+      };
+    }
+  } catch {
+    // Оформление — личная настройка браузера и не должно мешать работе с данными.
+  }
+  return defaultUnitkaAppearance;
+}
 
 function defaultUnitkaColumnWidth(column: UnitkaColumn): number {
   if (column.letter === "A") return 72;
@@ -800,6 +835,9 @@ function UnitkaPage() {
   const [columnWidths, setColumnWidths] = useState<Record<string, number>>(initialUnitkaColumnWidths);
   const [tableScale, setTableScale] = useState(100);
   const [rowDensity, setRowDensity] = useState<UnitkaRowDensity>("normal");
+  const [appearance, setAppearance] = useState<UnitkaAppearance>(initialUnitkaAppearance);
+  const [showAppearance, setShowAppearance] = useState(false);
+  const [colorColumn, setColorColumn] = useState("E");
 
   useEffect(() => {
     try {
@@ -808,6 +846,14 @@ function UnitkaPage() {
       // Таблица остаётся рабочей, даже если браузер не разрешил сохранить настройки.
     }
   }, [columnWidths]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem("leto_unitka_appearance_v1", JSON.stringify(appearance));
+    } catch {
+      // Таблица продолжает работать, даже если браузер запретил localStorage.
+    }
+  }, [appearance]);
 
   const visibleItems = useMemo(() => {
     const filtered = items.filter((item) =>
@@ -833,6 +879,15 @@ function UnitkaPage() {
     () => unitkaColumns.reduce((sum, column) => sum + (columnWidths[column.letter] ?? defaultUnitkaColumnWidth(column)), 0) + 52,
     [columnWidths],
   );
+
+  const frozenOffsets = useMemo(() => {
+    let offset = 0;
+    return unitkaColumns.map((column) => {
+      const current = offset;
+      offset += columnWidths[column.letter] ?? defaultUnitkaColumnWidth(column);
+      return current;
+    });
+  }, [columnWidths]);
 
   function toggleSort(letter: string) {
     setSort((previous) =>
@@ -861,6 +916,41 @@ function UnitkaPage() {
     setSort(null);
     setTableScale(100);
     setRowDensity("normal");
+    setAppearance(defaultUnitkaAppearance);
+  }
+
+  function updateConditionColor(key: UnitkaConditionKey, color: string) {
+    setAppearance((previous) => ({
+      ...previous,
+      conditionColors: { ...previous.conditionColors, [key]: color },
+    }));
+  }
+
+  function updateColumnColor(letter: string, color: string) {
+    setAppearance((previous) => ({
+      ...previous,
+      columnColors: { ...previous.columnColors, [letter]: color },
+    }));
+  }
+
+  function clearColumnColor(letter: string) {
+    setAppearance((previous) => {
+      const columnColors = { ...previous.columnColors };
+      delete columnColors[letter];
+      return { ...previous, columnColors };
+    });
+  }
+
+  function conditionClass(column: UnitkaColumn, item: UnitkaItem): string {
+    const value = unitkaRawValue(item, column);
+    if (column.letter === "E" && typeof value === "number") {
+      if (value <= 0) return "unitkaConditionStockZero";
+      if (value < 10) return "unitkaConditionStockLow";
+    }
+    if ((column.field === "net_profit" || column.field === "profitability_percent") && typeof value === "number") {
+      return value >= 0 ? "unitkaPositiveValue" : "unitkaNegativeValue";
+    }
+    return "";
   }
 
   function load() {
@@ -1026,10 +1116,88 @@ function UnitkaPage() {
                 <option value="comfortable">Свободная</option>
               </select>
             </label>
+            <label>
+              <span>Закрепление</span>
+              <select
+                value={appearance.freezeBaseColumns ? "base" : "none"}
+                onChange={(event) =>
+                  setAppearance((previous) => ({ ...previous, freezeBaseColumns: event.target.value === "base" }))
+                }
+              >
+                <option value="none">Без закрепления</option>
+                <option value="base">Базовые поля A–G</option>
+              </select>
+            </label>
+            <button className="secondaryButton" type="button" onClick={() => setShowAppearance((value) => !value)}>
+              {showAppearance ? "Скрыть оформление" : "Оформление"}
+            </button>
             <button className="secondaryButton" type="button" onClick={resetTableLayout}>
               Сбросить вид
             </button>
           </div>
+          {showAppearance && (
+            <section className="unitkaAppearancePanel">
+              <div>
+                <h3>Оформление таблицы</h3>
+                <p>Цвета и закрепление сохраняются только в этом браузере и не меняют данные Юнитки.</p>
+              </div>
+              <div className="unitkaAppearanceGrid">
+                <label>
+                  <span>Нулевой остаток</span>
+                  <input
+                    type="color"
+                    value={appearance.conditionColors.stockZero}
+                    onChange={(event) => updateConditionColor("stockZero", event.target.value)}
+                  />
+                </label>
+                <label>
+                  <span>Остаток меньше 10</span>
+                  <input
+                    type="color"
+                    value={appearance.conditionColors.stockLow}
+                    onChange={(event) => updateConditionColor("stockLow", event.target.value)}
+                  />
+                </label>
+                <label>
+                  <span>Прибыль в плюс</span>
+                  <input
+                    type="color"
+                    value={appearance.conditionColors.positive}
+                    onChange={(event) => updateConditionColor("positive", event.target.value)}
+                  />
+                </label>
+                <label>
+                  <span>Убыток или минус</span>
+                  <input
+                    type="color"
+                    value={appearance.conditionColors.negative}
+                    onChange={(event) => updateConditionColor("negative", event.target.value)}
+                  />
+                </label>
+                <label className="unitkaColumnColorPicker">
+                  <span>Цвет столбца</span>
+                  <select value={colorColumn} onChange={(event) => setColorColumn(event.target.value)}>
+                    {unitkaColumns.map((column) => (
+                      <option key={column.letter} value={column.letter}>
+                        {column.letter} · {column.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="unitkaColumnColorPicker">
+                  <span>Выбранный цвет</span>
+                  <input
+                    type="color"
+                    value={appearance.columnColors[colorColumn] ?? "#d9eff3"}
+                    onChange={(event) => updateColumnColor(colorColumn, event.target.value)}
+                  />
+                </label>
+                <button className="secondaryButton" type="button" onClick={() => clearColumnColor(colorColumn)}>
+                  Сбросить цвет столбца
+                </button>
+              </div>
+            </section>
+          )}
           <div className="unitkaTableWrap unitkaSpreadsheetWrap">
             <table
               className="unitkaTable unitkaSpreadsheet"
@@ -1040,6 +1208,10 @@ function UnitkaPage() {
                   "--unitka-row-height": `${Math.round(
                     (unitkaDensityHeights[rowDensity] * tableScale) / 100,
                   )}px`,
+                  "--unitka-stock-zero": appearance.conditionColors.stockZero,
+                  "--unitka-stock-low": appearance.conditionColors.stockLow,
+                  "--unitka-positive": appearance.conditionColors.positive,
+                  "--unitka-negative": appearance.conditionColors.negative,
                 } as CSSProperties
               }
             >
@@ -1050,28 +1222,21 @@ function UnitkaPage() {
                 <col style={{ width: 52 }} />
               </colgroup>
               <thead>
-                <tr>
-                  {unitkaColumns.map((column) => {
-                    const sortIndicator = sort?.letter === column.letter ? (sort.direction === "asc" ? "↑" : "↓") : "↕";
+                <tr className="unitkaColumnLettersRow">
+                  {unitkaColumns.map((column, index) => {
+                    const isFrozen = appearance.freezeBaseColumns && index < 7;
+                    const customColor = appearance.columnColors[column.letter];
+                    const style = {
+                      ...(customColor ? { "--unitka-custom-column-color": customColor } : {}),
+                      ...(isFrozen ? { left: frozenOffsets[index] } : {}),
+                    } as CSSProperties;
                     return (
-                      <th key={column.letter} className={`unitkaHeader unitkaHeader-${column.kind}`}>
-                        <button
-                          className="unitkaSortButton"
-                          type="button"
-                          title={`Сортировать по «${column.label}»`}
-                          onClick={() => toggleSort(column.letter)}
-                        >
-                          <span className="unitkaColumnLetter">{column.letter}</span>
-                          <span className="unitkaColumnLabel">{column.label}</span>
-                          <b aria-hidden="true">{sortIndicator}</b>
-                        </button>
-                        <input
-                          className="unitkaFilterInput"
-                          value={columnFilters[column.letter] ?? ""}
-                          onChange={(event) => setColumnFilters((previous) => ({ ...previous, [column.letter]: event.target.value }))}
-                          placeholder="Фильтр"
-                          aria-label={`Фильтр: ${column.label}`}
-                        />
+                      <th
+                        key={column.letter}
+                        className={`${customColor ? "unitkaColumnTint " : ""}${isFrozen ? "unitkaFrozenCell" : ""}`}
+                        style={style}
+                      >
+                        <span>{column.letter}</span>
                         <span
                           className="unitkaResizeHandle"
                           role="separator"
@@ -1084,16 +1249,66 @@ function UnitkaPage() {
                       </th>
                     );
                   })}
-                  <th className="unitkaDeleteHeader" />
+                  <th className="unitkaDeleteHeader" rowSpan={2} />
+                </tr>
+                <tr className="unitkaColumnHeadersRow">
+                  {unitkaColumns.map((column, index) => {
+                    const sortIndicator = sort?.letter === column.letter ? (sort.direction === "asc" ? "↑" : "↓") : "↕";
+                    const isFrozen = appearance.freezeBaseColumns && index < 7;
+                    const customColor = appearance.columnColors[column.letter];
+                    const style = {
+                      ...(customColor ? { "--unitka-custom-column-color": customColor } : {}),
+                      ...(isFrozen ? { left: frozenOffsets[index] } : {}),
+                    } as CSSProperties;
+                    return (
+                      <th
+                        key={column.letter}
+                        className={`unitkaHeader unitkaHeader-${column.kind} ${customColor ? "unitkaColumnTint" : ""} ${
+                          isFrozen ? "unitkaFrozenCell" : ""
+                        }`}
+                        style={style}
+                      >
+                        <button
+                          className="unitkaSortButton"
+                          type="button"
+                          title={`Сортировать по «${column.label}»`}
+                          onClick={() => toggleSort(column.letter)}
+                        >
+                          <span className="unitkaColumnLabel">{column.label}</span>
+                          <b aria-hidden="true">{sortIndicator}</b>
+                        </button>
+                        <input
+                          className="unitkaFilterInput"
+                          value={columnFilters[column.letter] ?? ""}
+                          onChange={(event) => setColumnFilters((previous) => ({ ...previous, [column.letter]: event.target.value }))}
+                          placeholder="Фильтр"
+                          aria-label={`Фильтр: ${column.label}`}
+                        />
+                      </th>
+                    );
+                  })}
                 </tr>
               </thead>
               <tbody>
                 {visibleItems.map((item) => (
                   <tr key={item.row.id} className={savingId === item.row.id ? "unitkaRowSaving" : ""}>
-                    {unitkaColumns.map((column) => {
+                    {unitkaColumns.map((column, index) => {
+                      const isFrozen = appearance.freezeBaseColumns && index < 7;
+                      const customColor = appearance.columnColors[column.letter];
+                      const toneClass = conditionClass(column, item);
+                      const style = {
+                        ...(customColor ? { "--unitka-custom-column-color": customColor } : {}),
+                        ...(isFrozen ? { left: frozenOffsets[index] } : {}),
+                      } as CSSProperties;
                       if (column.kind === "input") {
                         return (
-                          <td key={column.letter} className={column.className}>
+                          <td
+                            key={column.letter}
+                            className={`${column.className ?? ""} ${toneClass} ${customColor ? "unitkaColumnTint" : ""} ${
+                              isFrozen ? "unitkaFrozenCell" : ""
+                            }`}
+                            style={style}
+                          >
                             <EditableCell
                               type={column.inputType}
                               value={item.row[column.field] as string | number | null}
@@ -1110,7 +1325,13 @@ function UnitkaPage() {
                             : " unitkaNegativeValue"
                           : "";
                       return (
-                        <td key={column.letter} className={`unitkaComputedCell${signClass} ${column.className ?? ""}`}>
+                        <td
+                          key={column.letter}
+                          className={`unitkaComputedCell${signClass} ${toneClass} ${column.className ?? ""} ${
+                            customColor ? "unitkaColumnTint" : ""
+                          } ${isFrozen ? "unitkaFrozenCell" : ""}`}
+                          style={style}
+                        >
                           {formatComputedValue(value, column.format)}
                         </td>
                       );
